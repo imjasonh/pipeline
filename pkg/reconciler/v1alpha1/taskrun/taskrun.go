@@ -36,6 +36,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/reconciler/v1alpha1/taskrun/sidecars"
 	"github.com/tektoncd/pipeline/pkg/status"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -44,6 +45,7 @@ import (
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -95,6 +97,12 @@ func NewController(
 		timeoutHandler:    timeoutHandler,
 	}
 	impl := controller.NewImpl(c, c.Logger, taskRunControllerName)
+	// The default WorkQueue is rate limited to 10 QPS with 100-item
+	// bucket. 10x that to 100 QPS with 1000-item bucket.
+	impl.WorkQueue = workqueue.NewNamedRateLimitingQueue(
+		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(100), 1000)},
+		taskRunControllerName,
+	)
 
 	c.Logger.Info("Setting up event handlers")
 	taskRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
