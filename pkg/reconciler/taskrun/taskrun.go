@@ -34,6 +34,9 @@ import (
 	"github.com/tektoncd/pipeline/pkg/reconciler/taskrun/resources/cloudevent"
 	"github.com/tektoncd/pipeline/pkg/reconciler/taskrun/sidecars"
 	"github.com/tektoncd/pipeline/pkg/status"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +47,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/controller"
+	"knative.dev/pkg/metrics"
 	"knative.dev/pkg/tracker"
 )
 
@@ -76,10 +80,45 @@ type Reconciler struct {
 // Check that our Reconciler implements controller.Reconciler
 var _ controller.Reconciler = (*Reconciler)(nil)
 
+var (
+	feelingKey  = mustNewTagKey("feeling")
+	feelingStat = stats.Int64("jason_feeling", "Jason's current feeling", stats.UnitNone)
+)
+
+func init() {
+	// Create views to see our measurements. This can return an error if
+	// a previously-registered view has the same name with a different value.
+	// View name defaults to the measure name if unspecified.
+	err := view.Register(
+		&view.View{
+			Description: "Jason's current feeling (description)",
+			Measure:     feelingStat,
+			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{feelingKey},
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+}
+func mustNewTagKey(s string) tag.Key {
+	tagKey, err := tag.NewKey(s)
+	if err != nil {
+		panic(err)
+	}
+	return tagKey
+}
+
 // Reconcile compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Status block of the Task Run
 // resource with the current status of the resource.
 func (c *Reconciler) Reconcile(ctx context.Context, key string) error {
+	ctx, err := tag.New(context.Background(), tag.Insert(feelingKey, "groovy"))
+	if err != nil {
+		return err
+	}
+	metrics.Record(ctx, feelingStat.M(1))
+
 	// Convert the namespace/name string into a distinct namespace and name
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
