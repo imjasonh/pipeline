@@ -69,9 +69,8 @@ func (s *Store) Load() *Config {
 	if ep == nil {
 		return &Config{
 			ArtifactBucket: &v1alpha1.ArtifactBucket{
-				Location:      "",
-				BashNoopImage: s.images.BashNoopImage,
-				GsutilImage:   s.images.GsutilImage,
+				Location:    "",
+				GsutilImage: s.images.GsutilImage,
 			},
 		}
 	}

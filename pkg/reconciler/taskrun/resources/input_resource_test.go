@@ -37,7 +37,6 @@ var (
 		GitImage:                 "override-with-git:latest",
 		CredsImage:               "override-with-creds:latest",
 		KubeconfigWriterImage:    "override-with-kubeconfig-writer:latest",
-		BashNoopImage:            "override-with-bash-noop:latest",
 		GsutilImage:              "override-with-gsutil-image:latest",
 		BuildGCSFetcherImage:     "gcr.io/cloud-builders/gcs-fetcher:latest",
 		PRImage:                  "override-with-pr:latest",
@@ -513,14 +512,12 @@ func TestAddResourceToTask(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gitInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "create-dir-gitspace-mz4c7",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gitspace"},
+				Name:  "create-dir-gitspace-mz4c7",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gitspace"},
 			}}, {Container: corev1.Container{
 				Name:         "source-copy-gitspace-9l9zj",
-				Image:        "override-with-bash-noop:latest",
-				Command:      []string{"/ko-app/bash"},
+				Image:        "bash",
 				Args:         []string{"-args", "cp -r prev-task-path/. /workspace/gitspace"},
 				VolumeMounts: []corev1.VolumeMount{{MountPath: "/pvc", Name: "pipelinerun-pvc"}},
 			}}},
@@ -556,10 +553,9 @@ func TestAddResourceToTask(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gcsInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "create-dir-storage1-9l9zj",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gcs-dir"},
+				Name:  "create-dir-storage1-9l9zj",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gcs-dir"},
 			}}, {Container: corev1.Container{
 				Name:    "fetch-storage1-mz4c7",
 				Image:   "override-with-gsutil-image:latest",
@@ -597,14 +593,12 @@ func TestAddResourceToTask(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gcsInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "create-dir-workspace-mz4c7",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gcs-dir"},
+				Name:  "create-dir-workspace-mz4c7",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gcs-dir"},
 			}}, {Container: corev1.Container{
 				Name:         "source-copy-workspace-9l9zj",
-				Image:        "override-with-bash-noop:latest",
-				Command:      []string{"/ko-app/bash"},
+				Image:        "bash",
 				Args:         []string{"-args", "cp -r prev-task-path/. /workspace/gcs-dir"},
 				VolumeMounts: []corev1.VolumeMount{{MountPath: "/pvc", Name: "pipelinerun-pvc"}},
 			}}},
@@ -875,10 +869,9 @@ func TestStorageInputResource(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gcsStorageInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "create-dir-gcs-input-resource-9l9zj",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gcs-input-resource"},
+				Name:  "create-dir-gcs-input-resource-9l9zj",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gcs-input-resource"},
 			}}, {Container: corev1.Container{
 				Name:    "fetch-gcs-input-resource-mz4c7",
 				Image:   "override-with-gsutil-image:latest",
@@ -935,10 +928,9 @@ func TestStorageInputResource(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gcsStorageInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "create-dir-storage-gcs-keys-9l9zj",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gcs-input-resource"},
+				Name:  "create-dir-storage-gcs-keys-9l9zj",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gcs-input-resource"},
 			}}, {Container: corev1.Container{
 				Name:    "fetch-storage-gcs-keys-mz4c7",
 				Image:   "override-with-gsutil-image:latest",
@@ -1056,10 +1048,9 @@ func TestAddStepsToTaskWithBucketFromConfigMap(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gitInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "artifact-dest-mkdir-gitspace-mssqb",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gitspace"},
+				Name:  "artifact-dest-mkdir-gitspace-mssqb",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gitspace"},
 			}}, {Container: corev1.Container{
 				Name:         "artifact-copy-from-gitspace-78c5n",
 				Image:        "override-with-gsutil-image:latest",
@@ -1099,10 +1090,9 @@ func TestAddStepsToTaskWithBucketFromConfigMap(t *testing.T) {
 		want: &v1alpha1.TaskSpec{
 			Inputs: gcsInputs,
 			Steps: []v1alpha1.Step{{Container: corev1.Container{
-				Name:    "artifact-dest-mkdir-workspace-6nl7g",
-				Image:   "override-with-bash-noop:latest",
-				Command: []string{"/ko-app/bash"},
-				Args:    []string{"-args", "mkdir -p /workspace/gcs-dir"},
+				Name:  "artifact-dest-mkdir-workspace-6nl7g",
+				Image: "bash",
+				Args:  []string{"-args", "mkdir -p /workspace/gcs-dir"},
 			}}, {Container: corev1.Container{
 				Name:         "artifact-copy-from-workspace-j2tds",
 				Image:        "override-with-gsutil-image:latest",
@@ -1149,44 +1139,33 @@ func TestAddStepsToTaskWithBucketFromConfigMap(t *testing.T) {
 		},
 		want: &v1alpha1.TaskSpec{
 			Inputs: multipleGcsInputs,
-			Steps: []v1alpha1.Step{
-				{
-					Container: corev1.Container{
-						Name:    "artifact-dest-mkdir-workspace-twkr2",
-						Image:   "override-with-bash-noop:latest",
-						Command: []string{"/ko-app/bash"},
-						Args:    []string{"-args", "mkdir -p /workspace/gcs-dir"},
-					},
-				},
-				{
-					Container: corev1.Container{
-						Name:         "artifact-copy-from-workspace-mnq6l",
-						Image:        "override-with-gsutil-image:latest",
-						Command:      []string{"/ko-app/gsutil"},
-						Args:         []string{"-args", "cp -P -r gs://fake-bucket/prev-task-path/* /workspace/gcs-dir"},
-						Env:          gcsEnv,
-						VolumeMounts: gcsVolumeMounts,
-					},
-				},
-				{
-					Container: corev1.Container{
-						Name:    "artifact-dest-mkdir-workspace2-vr6ds",
-						Image:   "override-with-bash-noop:latest",
-						Command: []string{"/ko-app/bash"},
-						Args:    []string{"-args", "mkdir -p /workspace/gcs-dir"},
-					},
-				},
-				{
-					Container: corev1.Container{
-						Name:         "artifact-copy-from-workspace2-l22wn",
-						Image:        "override-with-gsutil-image:latest",
-						Command:      []string{"/ko-app/gsutil"},
-						Args:         []string{"-args", "cp -P -r gs://fake-bucket/prev-task-path2/* /workspace/gcs-dir"},
-						Env:          gcsEnv,
-						VolumeMounts: gcsVolumeMounts,
-					},
-				},
-			},
+			Steps: []v1alpha1.Step{{
+				Container: corev1.Container{
+					Name:  "artifact-dest-mkdir-workspace-twkr2",
+					Image: "bash",
+					Args:  []string{"-args", "mkdir -p /workspace/gcs-dir"},
+				}}, {
+				Container: corev1.Container{
+					Name:         "artifact-copy-from-workspace-mnq6l",
+					Image:        "override-with-gsutil-image:latest",
+					Command:      []string{"/ko-app/gsutil"},
+					Args:         []string{"-args", "cp -P -r gs://fake-bucket/prev-task-path/* /workspace/gcs-dir"},
+					Env:          gcsEnv,
+					VolumeMounts: gcsVolumeMounts,
+				}}, {
+				Container: corev1.Container{
+					Name:  "artifact-dest-mkdir-workspace2-vr6ds",
+					Image: "bash",
+					Args:  []string{"-args", "mkdir -p /workspace/gcs-dir"},
+				}}, {
+				Container: corev1.Container{
+					Name:         "artifact-copy-from-workspace2-l22wn",
+					Image:        "override-with-gsutil-image:latest",
+					Command:      []string{"/ko-app/gsutil"},
+					Args:         []string{"-args", "cp -P -r gs://fake-bucket/prev-task-path2/* /workspace/gcs-dir"},
+					Env:          gcsEnv,
+					VolumeMounts: gcsVolumeMounts,
+				}}},
 			Volumes: gcsVolumes,
 		},
 	}} {

@@ -39,8 +39,7 @@ var (
 	resourceQuantityCmp = cmp.Comparer(func(x, y resource.Quantity) bool {
 		return x.Cmp(y) == 0
 	})
-	credsImage    = "override-with-creds:latest"
-	bashNoopImage = "override-with-bash-noop:latest"
+	credsImage = "override-with-creds:latest"
 )
 
 func TestTryGetPod(t *testing.T) {
@@ -403,9 +402,8 @@ func TestMakePod(t *testing.T) {
 				WorkingDir:   workspaceDir,
 			}, {
 				Name:         containerPrefix + workingDirInit + "-mz4c7",
-				Image:        bashNoopImage,
-				Command:      []string{"/ko-app/bash"},
-				Args:         []string{"-args", fmt.Sprintf("mkdir -p %s", filepath.Join(workspaceDir, "test"))},
+				Image:        "bash",
+				Command:      []string{"-c", "mkdir -p /workspace/test"},
 				Env:          implicitEnvVars,
 				VolumeMounts: implicitVolumeMounts,
 				WorkingDir:   workspaceDir,
@@ -506,11 +504,9 @@ print("Hello from Python")`,
 				VolumeMounts: implicitVolumeMounts,
 				WorkingDir:   workspaceDir,
 			}, {
-				Name:    "place-scripts-mz4c7",
-				Image:   images.BashNoopImage,
-				Command: []string{"/ko-app/bash"},
-				TTY:     true,
-				Args: []string{"-args", `tmpfile="/builder/scripts/script-0-mssqb"
+				Name:  "place-scripts-mz4c7",
+				Image: "bash",
+				Args: []string{"-c", `tmpfile="/builder/scripts/script-0-mssqb"
 touch ${tmpfile} && chmod +x ${tmpfile}
 cat > ${tmpfile} << 'script-heredoc-randomly-generated-78c5n'
 echo hello from step one
@@ -771,9 +767,8 @@ func TestInitOutputResourcesDefaultDir(t *testing.T) {
 			WorkingDir:   workspaceDir,
 		}, {
 			Name:         "create-dir-default-image-output-mz4c7",
-			Image:        "override-with-bash-noop:latest",
-			Command:      []string{"/ko-app/bash"},
-			Args:         []string{"-args", "mkdir -p /builder/home/image-outputs/outputimage"},
+			Image:        "bash",
+			Command:      []string{"mkdir", "-p", "/builder/home/image-outputs/outputimage"},
 			VolumeMounts: implicitVolumeMounts,
 		}},
 		Containers: []corev1.Container{{

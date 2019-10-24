@@ -40,7 +40,6 @@ var (
 		GitImage:                 "override-with-git:latest",
 		CredsImage:               "override-with-creds:latest",
 		KubeconfigWriterImage:    "override-with-kubeconfig-writer:latest",
-		BashNoopImage:            "override-with-bash-noop:latest",
 		GsutilImage:              "override-with-gsutil-image:latest",
 		BuildGCSFetcherImage:     "gcr.io/cloud-builders/gcs-fetcher:latest",
 		PRImage:                  "override-with-pr:latest",
@@ -177,7 +176,6 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
 			Name:                  "pipelineruntest",
 			PersistentVolumeClaim: GetPersistentVolumeClaim("10Gi", defaultStorageClass),
-			BashNoopImage:         "override-with-bash-noop:latest",
 		},
 		storagetype: "pvc",
 	}, {
@@ -195,7 +193,6 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
 			Name:                  "pipelineruntest",
 			PersistentVolumeClaim: GetPersistentVolumeClaim("5Gi", &customStorageClass),
-			BashNoopImage:         "override-with-bash-noop:latest",
 		},
 		storagetype: "pvc",
 	}, {
@@ -219,8 +216,7 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 				SecretKey:  "sakey",
 				SecretName: "secret1",
 			}},
-			BashNoopImage: "override-with-bash-noop:latest",
-			GsutilImage:   "override-with-gsutil-image:latest",
+			GsutilImage: "override-with-gsutil-image:latest",
 		},
 		storagetype: "bucket",
 	}, {
@@ -240,7 +236,6 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
 			Name:                  "pipelineruntest",
 			PersistentVolumeClaim: persistentVolumeClaim,
-			BashNoopImage:         "override-with-bash-noop:latest",
 		},
 		storagetype: "pvc",
 	}, {
@@ -259,7 +254,6 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
 			Name:                  "pipelineruntest",
 			PersistentVolumeClaim: persistentVolumeClaim,
-			BashNoopImage:         "override-with-bash-noop:latest",
 		},
 		storagetype: "pvc",
 	}, {
@@ -274,7 +268,6 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
 			Name:                  "pipelineruntest",
 			PersistentVolumeClaim: persistentVolumeClaim,
-			BashNoopImage:         "override-with-bash-noop:latest",
 		},
 		storagetype: "pvc",
 	}, {
@@ -290,9 +283,8 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		},
 		pipelinerun: pipelinerun,
 		expectedArtifactStorage: &v1alpha1.ArtifactBucket{
-			Location:      "gs://fake-bucket",
-			BashNoopImage: "override-with-bash-noop:latest",
-			GsutilImage:   "override-with-gsutil-image:latest",
+			Location:    "gs://fake-bucket",
+			GsutilImage: "override-with-gsutil-image:latest",
 		},
 		storagetype: "bucket",
 	}, {
@@ -311,9 +303,8 @@ func TestInitializeArtifactStorageWithConfigMap(t *testing.T) {
 		},
 		pipelinerun: pipelinerun,
 		expectedArtifactStorage: &v1alpha1.ArtifactBucket{
-			Location:      "s3://fake-bucket",
-			BashNoopImage: "override-with-bash-noop:latest",
-			GsutilImage:   "override-with-gsutil-image:latest",
+			Location:    "s3://fake-bucket",
+			GsutilImage: "override-with-gsutil-image:latest",
 			Secrets: []v1alpha1.SecretParam{{
 				FieldName:  "BOTO_CONFIG",
 				SecretKey:  "sakey",
@@ -439,9 +430,7 @@ func TestInitializeArtifactStorageWithoutConfigMap(t *testing.T) {
 	expectedArtifactPVC := &v1alpha1.ArtifactPVC{
 		Name:                  "pipelineruntest",
 		PersistentVolumeClaim: persistentVolumeClaim,
-		BashNoopImage:         "override-with-bash-noop:latest",
 	}
-
 	if diff := cmp.Diff(pvc, expectedArtifactPVC, cmpopts.IgnoreUnexported(resource.Quantity{})); diff != "" {
 		t.Fatalf("-want +got: %s", diff)
 	}
@@ -473,8 +462,7 @@ func TestGetArtifactStorageWithConfigMap(t *testing.T) {
 				SecretKey:  "sakey",
 				SecretName: "secret1",
 			}},
-			BashNoopImage: "override-with-bash-noop:latest",
-			GsutilImage:   "override-with-gsutil-image:latest",
+			GsutilImage: "override-with-gsutil-image:latest",
 		},
 	}, {
 		desc: "location empty",
@@ -490,8 +478,7 @@ func TestGetArtifactStorageWithConfigMap(t *testing.T) {
 			},
 		},
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
-			Name:          pipelinerun.Name,
-			BashNoopImage: "override-with-bash-noop:latest",
+			Name: pipelinerun.Name,
 		},
 	}, {
 		desc: "missing location",
@@ -506,8 +493,7 @@ func TestGetArtifactStorageWithConfigMap(t *testing.T) {
 			},
 		},
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
-			Name:          pipelinerun.Name,
-			BashNoopImage: "override-with-bash-noop:latest",
+			Name: pipelinerun.Name,
 		},
 	}, {
 		desc: "no config map data",
@@ -518,8 +504,7 @@ func TestGetArtifactStorageWithConfigMap(t *testing.T) {
 			},
 		},
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
-			Name:          pipelinerun.Name,
-			BashNoopImage: "override-with-bash-noop:latest",
+			Name: pipelinerun.Name,
 		},
 	}} {
 		t.Run(c.desc, func(t *testing.T) {
@@ -546,10 +531,8 @@ func TestGetArtifactStorageWithoutConfigMap(t *testing.T) {
 	}
 
 	expectedArtifactPVC := &v1alpha1.ArtifactPVC{
-		Name:          "pipelineruntest",
-		BashNoopImage: "override-with-bash-noop:latest",
+		Name: "pipelineruntest",
 	}
-
 	if diff := cmp.Diff(pvc, expectedArtifactPVC); diff != "" {
 		t.Fatalf("-want +got: %s", diff)
 	}
@@ -574,8 +557,7 @@ func TestGetArtifactStorageWithPvcConfigMap(t *testing.T) {
 			},
 		},
 		expectedArtifactStorage: &v1alpha1.ArtifactPVC{
-			Name:          "pipelineruntest",
-			BashNoopImage: "override-with-bash-noop:latest",
+			Name: "pipelineruntest",
 		},
 	}} {
 		t.Run(c.desc, func(t *testing.T) {

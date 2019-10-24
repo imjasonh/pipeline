@@ -30,14 +30,12 @@ func TestPVCGetCopyFromContainerSpec(t *testing.T) {
 	names.TestingSeed()
 
 	pvc := v1alpha1.ArtifactPVC{
-		Name:          "pipelinerun-pvc",
-		BashNoopImage: "override-with-bash-noop:latest",
+		Name: "pipelinerun-pvc",
 	}
 	want := []v1alpha1.Step{{Container: corev1.Container{
 		Name:    "source-copy-workspace-9l9zj",
-		Image:   "override-with-bash-noop:latest",
-		Command: []string{"/ko-app/bash"},
-		Args:    []string{"-args", "cp -r src-path/. /workspace/destination"},
+		Image:   "bash",
+		Command: []string{"cp", "-r", "src-path/.", "/workspace/destination"},
 	}}}
 
 	got := pvc.GetCopyFromStorageToSteps("workspace", "src-path", "/workspace/destination")
@@ -50,20 +48,17 @@ func TestPVCGetCopyToContainerSpec(t *testing.T) {
 	names.TestingSeed()
 
 	pvc := v1alpha1.ArtifactPVC{
-		Name:          "pipelinerun-pvc",
-		BashNoopImage: "override-with-bash-noop:latest",
+		Name: "pipelinerun-pvc",
 	}
 	want := []v1alpha1.Step{{Container: corev1.Container{
 		Name:         "source-mkdir-workspace-9l9zj",
-		Image:        "override-with-bash-noop:latest",
-		Command:      []string{"/ko-app/bash"},
-		Args:         []string{"-args", "mkdir -p /workspace/destination"},
+		Image:        "bash",
+		Command:      []string{"mkdir", "-p", "/workspace/destination"},
 		VolumeMounts: []corev1.VolumeMount{{MountPath: "/pvc", Name: "pipelinerun-pvc"}},
 	}}, {Container: corev1.Container{
 		Name:         "source-copy-workspace-mz4c7",
-		Image:        "override-with-bash-noop:latest",
-		Command:      []string{"/ko-app/bash"},
-		Args:         []string{"-args", "cp -r src-path/. /workspace/destination"},
+		Image:        "bash",
+		Command:      []string{"cp", "-r", "src-path/.", "/workspace/destination"},
 		VolumeMounts: []corev1.VolumeMount{{MountPath: "/pvc", Name: "pipelinerun-pvc"}},
 	}}}
 
@@ -93,11 +88,10 @@ func TestPVCGetMakeStep(t *testing.T) {
 
 	want := v1alpha1.Step{Container: corev1.Container{
 		Name:    "create-dir-workspace-9l9zj",
-		Image:   "override-with-bash-noop:latest",
-		Command: []string{"/ko-app/bash"},
-		Args:    []string{"-args", "mkdir -p /workspace/destination"},
+		Image:   "bash",
+		Command: []string{"mkdir", "-p", "/workspace/destination"},
 	}}
-	got := v1alpha1.CreateDirStep("override-with-bash-noop:latest", "workspace", "/workspace/destination")
+	got := v1alpha1.CreateDirStep("workspace", "/workspace/destination")
 	if d := cmp.Diff(got, want); d != "" {
 		t.Errorf("Diff:\n%s", d)
 	}

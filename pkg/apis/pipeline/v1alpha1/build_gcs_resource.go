@@ -66,7 +66,6 @@ type BuildGCSResource struct {
 	Location     string
 	ArtifactType GCSArtifactType
 
-	BashNoopImage        string `json:"-"`
 	BuildGCSFetcherImage string `json:"-"`
 }
 
@@ -103,7 +102,6 @@ func NewBuildGCSResource(images pipeline.Images, r *PipelineResource) (*BuildGCS
 		Type:                 r.Spec.Type,
 		Location:             location,
 		ArtifactType:         aType,
-		BashNoopImage:        images.BashNoopImage,
 		BuildGCSFetcherImage: images.BuildGCSFetcherImage,
 	}, nil
 }
@@ -135,7 +133,7 @@ func (s *BuildGCSResource) GetInputTaskModifier(ts *TaskSpec, sourcePath string)
 	}
 
 	steps := []Step{
-		CreateDirStep(s.BashNoopImage, s.Name, sourcePath),
+		CreateDirStep(s.Name, sourcePath),
 		{Container: corev1.Container{
 			Name:    names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("storage-fetch-%s", s.Name)),
 			Command: []string{"/ko-app/gcs-fetcher"},

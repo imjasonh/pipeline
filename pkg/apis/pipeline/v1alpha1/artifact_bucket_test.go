@@ -40,8 +40,7 @@ var (
 			SecretName: secretName,
 			SecretKey:  "serviceaccount",
 		}},
-		BashNoopImage: "override-with-bash-noop:latest",
-		GsutilImage:   "override-with-gsutil-image:latest",
+		GsutilImage: "override-with-gsutil-image:latest",
 	}
 )
 
@@ -50,9 +49,8 @@ func TestBucketGetCopyFromContainerSpec(t *testing.T) {
 
 	want := []v1alpha1.Step{{Container: corev1.Container{
 		Name:    "artifact-dest-mkdir-workspace-9l9zj",
-		Image:   "override-with-bash-noop:latest",
-		Command: []string{"/ko-app/bash"},
-		Args:    []string{"-args", "mkdir -p /workspace/destination"},
+		Image:   "bash",
+		Command: []string{"mkdir", "-p", "/workspace/destination"},
 	}}, {Container: corev1.Container{
 		Name:         "artifact-copy-from-workspace-mz4c7",
 		Image:        "override-with-gsutil-image:latest",

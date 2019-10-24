@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/tektoncd/pipeline/pkg/names"
 	corev1 "k8s.io/api/core/v1"
@@ -70,8 +69,7 @@ type ArtifactBucket struct {
 	Location string
 	Secrets  []SecretParam
 
-	BashNoopImage string
-	GsutilImage   string
+	GsutilImage string
 }
 
 // GetType returns the type of the artifact storage
@@ -92,11 +90,8 @@ func (b *ArtifactBucket) GetCopyFromStorageToSteps(name, sourcePath, destination
 
 	return []Step{{Container: corev1.Container{
 		Name:    names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("artifact-dest-mkdir-%s", name)),
-		Image:   b.BashNoopImage,
-		Command: []string{"/ko-app/bash"},
-		Args: []string{
-			"-args", strings.Join([]string{"mkdir", "-p", destinationPath}, " "),
-		},
+		Image:   "bash",
+		Command: []string{"mkdir", "-p", destinationPath},
 	}}, {Container: corev1.Container{
 		Name:         names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("artifact-copy-from-%s", name)),
 		Image:        b.GsutilImage,

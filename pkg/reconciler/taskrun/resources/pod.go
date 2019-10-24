@@ -197,7 +197,7 @@ func makeWorkingDirScript(workingDirs map[string]bool) string {
 	return script
 }
 
-func makeWorkingDirInitializer(bashNoopImage string, steps []v1alpha1.Step) *v1alpha1.Step {
+func makeWorkingDirInitializer(steps []v1alpha1.Step) *v1alpha1.Step {
 	workingDirs := make(map[string]bool)
 	for _, step := range steps {
 		workingDirs[step.WorkingDir] = true
@@ -206,9 +206,8 @@ func makeWorkingDirInitializer(bashNoopImage string, steps []v1alpha1.Step) *v1a
 	if script := makeWorkingDirScript(workingDirs); script != "" {
 		return &v1alpha1.Step{Container: corev1.Container{
 			Name:         names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(containerPrefix + workingDirInit),
-			Image:        bashNoopImage,
-			Command:      []string{"/ko-app/bash"},
-			Args:         []string{"-args", script},
+			Image:        "bash",
+			Command:      []string{"-c", script},
 			VolumeMounts: implicitVolumeMounts,
 			Env:          implicitEnvVars,
 			WorkingDir:   workspaceDir,
@@ -219,14 +218,14 @@ func makeWorkingDirInitializer(bashNoopImage string, steps []v1alpha1.Step) *v1a
 
 // initOutputResourcesDefaultDir checks if there are any output image resources expecting a default path
 // and creates an init container to create that folder
-func initOutputResourcesDefaultDir(bashNoopImage string, taskRun *v1alpha1.TaskRun, taskSpec v1alpha1.TaskSpec) []v1alpha1.Step {
+func initOutputResourcesDefaultDir(taskRun *v1alpha1.TaskRun, taskSpec v1alpha1.TaskSpec) []v1alpha1.Step {
 	var makeDirSteps []v1alpha1.Step
 	if len(taskRun.Spec.Outputs.Resources) > 0 {
 		for _, r := range taskRun.Spec.Outputs.Resources {
 			for _, o := range taskSpec.Outputs.Resources {
 				if o.Name == r.Name {
 					if strings.HasPrefix(o.OutputImageDir, v1alpha1.TaskOutputImageDefaultDir) {
-						s := v1alpha1.CreateDirStep(bashNoopImage, "default-image-output", fmt.Sprintf("%s/%s", v1alpha1.TaskOutputImageDefaultDir, r.Name))
+						s := v1alpha1.CreateDirStep("default-image-output", fmt.Sprintf("%s/%s", v1alpha1.TaskOutputImageDefaultDir, r.Name))
 						s.VolumeMounts = append(s.VolumeMounts, implicitVolumeMounts...)
 						makeDirSteps = append(makeDirSteps, s)
 					}
@@ -264,21 +263,19 @@ func MakePod(images pipeline.Images, taskRun *v1alpha1.TaskRun, taskSpec v1alpha
 	initSteps := []v1alpha1.Step{*cred}
 	var podSteps []v1alpha1.Step
 
-	if workingDir := makeWorkingDirInitializer(images.BashNoopImage, taskSpec.Steps); workingDir != nil {
+	if workingDir := makeWorkingDirInitializer(taskSpec.Steps); workingDir != nil {
 		initSteps = append(initSteps, *workingDir)
 	}
 
-	initSteps = append(initSteps, initOutputResourcesDefaultDir(images.BashNoopImage, taskRun, taskSpec)...)
+	initSteps = append(initSteps, initOutputResourcesDefaultDir(taskRun, taskSpec)...)
 
 	maxIndicesByResource := findMaxResourceRequest(taskSpec.Steps, corev1.ResourceCPU, corev1.ResourceMemory, corev1.ResourceEphemeralStorage)
 
 	placeScripts := false
 	placeScriptsStep := v1alpha1.Step{Container: corev1.Container{
 		Name:         names.SimpleNameGenerator.RestrictLengthWithRandomSuffix("place-scripts"),
-		Image:        images.BashNoopImage,
-		TTY:          true,
-		Command:      []string{"/ko-app/bash"},
-		Args:         []string{"-args", ""},
+		Image:        "bash",
+		Args:         []string{"-c", ""}, // This second string will be appended to when steps specify a script.
 		VolumeMounts: []corev1.VolumeMount{scriptsVolumeMount},
 	}}
 
