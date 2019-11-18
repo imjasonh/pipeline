@@ -45,6 +45,7 @@ func (ts *TaskSpec) Validate(ctx context.Context) *apis.FieldError {
 	if err := ValidateVolumes(ts.Volumes).ViaField("volumes"); err != nil {
 		return err
 	}
+	/* TODO
 	mergedSteps, err := MergeStepsWithStepTemplate(ts.StepTemplate, ts.Steps)
 	if err != nil {
 		return &apis.FieldError{
@@ -56,6 +57,7 @@ func (ts *TaskSpec) Validate(ctx context.Context) *apis.FieldError {
 	if err := validateSteps(mergedSteps).ViaField("steps"); err != nil {
 		return err
 	}
+	*/
 
 	// A task doesn't have to have inputs or outputs, but if it does they must be valid.
 	// A task can't duplicate input or output names.

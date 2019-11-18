@@ -14,19 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package pod
 
 import (
 	"encoding/json"
 
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-// MergeStepsWithStepTemplate takes a possibly nil container template and a
+// mergeStepTemplate takes a possibly nil container template and a
 // list of steps, merging each of the steps with the container template, if
 // it's not nil, and returning the resulting list.
-func MergeStepsWithStepTemplate(template *v1.Container, steps []Step) ([]Step, error) {
+func mergeStepTemplate(template *v1.Container, orig []v1alpha1.Step) ([]v1alpha1.Step, error) {
+	steps := orig[:] // copy
 	if template == nil {
 		return steps, nil
 	}
@@ -84,7 +86,7 @@ func MergeStepsWithStepTemplate(template *v1.Container, steps []Step) ([]Step, e
 			merged.Args = []string{}
 		}
 
-		steps[i] = Step{Container: *merged}
+		steps[i] = v1alpha1.Step{Container: *merged}
 	}
 	return steps, nil
 }
