@@ -17,11 +17,12 @@ limitations under the License.
 package entrypoint
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"golang.org/x/xerrors"
 )
 
 func TestEntrypointerFailures(t *testing.T) {
@@ -33,22 +34,22 @@ func TestEntrypointerFailures(t *testing.T) {
 		expectedError  string
 	}{{
 		desc:          "failing runner with no postFile",
-		runner:        &fakeErrorRunner{},
+		runner:        &fakeRunner{err: errors.New("runner failed")},
 		expectedError: "runner failed",
 	}, {
 		desc:          "failing runner with postFile",
-		runner:        &fakeErrorRunner{},
+		runner:        &fakeRunner{err: errors.New("runner failed")},
 		expectedError: "runner failed",
 		postFile:      "foo",
 	}, {
 		desc:          "failing waiter with no postFile",
 		waitFiles:     []string{"foo"},
-		waiter:        &fakeErrorWaiter{},
+		waiter:        &fakeWaiter{err: errors.New("waiter failed")},
 		expectedError: "waiter failed",
 	}, {
 		desc:          "failing waiter with postFile",
 		waitFiles:     []string{"foo"},
-		waiter:        &fakeErrorWaiter{},
+		waiter:        &fakeWaiter{err: errors.New("waiter failed")},
 		expectedError: "waiter failed",
 		postFile:      "bar",
 	}} {
@@ -192,18 +193,24 @@ func TestEntrypointer(t *testing.T) {
 	}
 }
 
-type fakeWaiter struct{ waited []string }
+type fakeWaiter struct {
+	waited []string
+	err    error
+}
 
 func (f *fakeWaiter) Wait(file string, _ bool) error {
 	f.waited = append(f.waited, file)
-	return nil
+	return f.err
 }
 
-type fakeRunner struct{ args *[]string }
+type fakeRunner struct {
+	args *[]string
+	err  error
+}
 
-func (f *fakeRunner) Run(args ...string) error {
+func (f *fakeRunner) Run(ctx context.Context, args ...string) error {
 	f.args = &args
-	return nil
+	return f.err
 }
 
 type fakeWriter map[string]struct{}
@@ -216,18 +223,4 @@ func (f fakeWriter) Write(file string) error {
 func (f fakeWriter) wrote(file string) bool {
 	_, found := f[file]
 	return found
-}
-
-type fakeErrorWaiter struct{ waited *string }
-
-func (f *fakeErrorWaiter) Wait(file string, expectContent bool) error {
-	f.waited = &file
-	return xerrors.New("waiter failed")
-}
-
-type fakeErrorRunner struct{ args *[]string }
-
-func (f *fakeErrorRunner) Run(args ...string) error {
-	f.args = &args
-	return xerrors.New("runner failed")
 }

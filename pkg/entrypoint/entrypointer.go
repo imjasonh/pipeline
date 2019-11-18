@@ -17,6 +17,7 @@ limitations under the License.
 package entrypoint
 
 import (
+	"context"
 	"fmt"
 	"log"
 )
@@ -40,6 +41,9 @@ type Entrypointer struct {
 	// StartFile is the file to write when starting (after any waiting). If
 	// not specified, no file is written.
 	StartFile string
+	// KillFile is the file to watch for a signal to end executino and exit
+	// 0.
+	KillFile string
 
 	// Waiter encapsulates waiting for files to exist.
 	Waiter Waiter
@@ -57,7 +61,7 @@ type Waiter interface {
 
 // Runner encapsulates running commands.
 type Runner interface {
-	Run(args ...string) error
+	Run(ctx context.Context, args ...string) error
 }
 
 // Writer encapsulates writing a file when complete.
@@ -88,7 +92,17 @@ func (e Entrypointer) Go() error {
 		e.Args = append([]string{e.Entrypoint}, e.Args...)
 	}
 
-	err := e.Runner.Run(e.Args...)
+	ctx, cancel := context.WithCancel(context.Background())
+	if e.KillFile != "" {
+		go func() {
+			if err := e.Waiter.Wait(e.KillFile, false); err != nil {
+				log.Fatalf("Error waiting for kill file %q: %v", e.KillFile, err)
+			}
+			cancel()
+		}()
+	}
+
+	err := e.Runner.Run(ctx, e.Args...)
 
 	// Write the post file *no matter what*
 	e.WritePostFile(e.PostFile, err)

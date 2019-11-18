@@ -34,6 +34,7 @@ var (
 	waitFileContent = flag.Bool("wait_file_content", false, "If specified, expect wait_file to have content")
 	postFile        = flag.String("post_file", "", "If specified, file to write upon completion")
 	startFile       = flag.String("start_file", "", "If specified, file to write upon starting")
+	killFile        = flag.String("kill_file", "", "If specified, file to watch to exit gracefully")
 
 	waitPollingInterval = time.Second
 )
@@ -47,6 +48,7 @@ func main() {
 		WaitFileContent: *waitFileContent,
 		PostFile:        *postFile,
 		StartFile:       *startFile,
+		KillFile:        *killFile,
 		Args:            flag.Args(),
 		Waiter:          &realWaiter{},
 		Runner:          &realRunner{},
