@@ -1,22 +1,20 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/tektoncd/pipeline/pkg/entrypoint"
 )
 
-// realPostWriter actually writes files.
-type realPostWriter struct{}
+// realWriter actually writes files.
+type realWriter struct{}
 
-var _ entrypoint.PostWriter = (*realPostWriter)(nil)
+var _ entrypoint.Writer = (*realWriter)(nil)
 
-func (*realPostWriter) Write(file string) {
+func (*realWriter) Write(file string) error {
 	if file == "" {
-		return
+		return nil
 	}
-	if _, err := os.Create(file); err != nil {
-		log.Fatalf("Creating %q: %v", file, err)
-	}
+	_, err := os.Create(file)
+	return err
 }

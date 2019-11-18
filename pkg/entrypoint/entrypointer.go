@@ -18,6 +18,7 @@ package entrypoint
 
 import (
 	"fmt"
+	"log"
 )
 
 // Entrypointer holds fields for running commands with redirected
@@ -36,13 +37,16 @@ type Entrypointer struct {
 	// PostFile is the file to write when complete. If not specified, no
 	// file is written.
 	PostFile string
+	// StartFile is the file to write when starting (after any waiting). If
+	// not specified, no file is written.
+	StartFile string
 
 	// Waiter encapsulates waiting for files to exist.
 	Waiter Waiter
 	// Runner encapsulates running commands.
 	Runner Runner
-	// PostWriter encapsulates writing files when complete.
-	PostWriter PostWriter
+	// Writer encapsulates writing files when complete.
+	Writer Writer
 }
 
 // Waiter encapsulates waiting for files to exist.
@@ -56,10 +60,10 @@ type Runner interface {
 	Run(args ...string) error
 }
 
-// PostWriter encapsulates writing a file when complete.
-type PostWriter interface {
+// Writer encapsulates writing a file when complete.
+type Writer interface {
 	// Write writes to the path when complete.
-	Write(file string)
+	Write(file string) error
 }
 
 // Go optionally waits for a file, runs the command, and writes a
@@ -71,6 +75,12 @@ func (e Entrypointer) Go() error {
 			// *but* we write postfile to make next steps bail too.
 			e.WritePostFile(e.PostFile, err)
 			return err
+		}
+	}
+
+	if e.StartFile != "" {
+		if err := e.Writer.Write(e.StartFile); err != nil {
+			log.Fatalf("Error writing start file %q: %v", e.StartFile, err)
 		}
 	}
 
@@ -91,6 +101,8 @@ func (e Entrypointer) WritePostFile(postFile string, err error) {
 		postFile = fmt.Sprintf("%s.err", postFile)
 	}
 	if postFile != "" {
-		e.PostWriter.Write(postFile)
+		if werr := e.Writer.Write(postFile); werr != nil {
+			log.Fatalf("Error writing %q: %v", postFile, werr)
+		}
 	}
 }

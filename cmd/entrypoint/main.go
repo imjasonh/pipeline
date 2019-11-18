@@ -33,6 +33,7 @@ var (
 	waitFiles       = flag.String("wait_file", "", "Comma-separated list of paths to wait for")
 	waitFileContent = flag.Bool("wait_file_content", false, "If specified, expect wait_file to have content")
 	postFile        = flag.String("post_file", "", "If specified, file to write upon completion")
+	startFile       = flag.String("start_file", "", "If specified, file to write upon starting")
 
 	waitPollingInterval = time.Second
 )
@@ -45,10 +46,11 @@ func main() {
 		WaitFiles:       strings.Split(*waitFiles, ","),
 		WaitFileContent: *waitFileContent,
 		PostFile:        *postFile,
+		StartFile:       *startFile,
 		Args:            flag.Args(),
 		Waiter:          &realWaiter{},
 		Runner:          &realRunner{},
-		PostWriter:      &realPostWriter{},
+		Writer:          &realWriter{},
 	}
 	if err := e.Go(); err != nil {
 		switch t := err.(type) {
