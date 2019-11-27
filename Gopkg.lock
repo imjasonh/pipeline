@@ -187,6 +187,14 @@
   version = "v4.5.0"
 
 [[projects]]
+  digest = "1:1b91ae0dc69a41d4c2ed23ea5cffb721ea63f5037ca4b81e6d6771fbb8f45129"
+  name = "github.com/fsnotify/fsnotify"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
+  version = "v1.4.7"
+
+[[projects]]
   digest = "1:abfe129dc92b16fbf0cc9d6336096a2823151756f62072a700eb10754141b38e"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -1347,6 +1355,7 @@
     "github.com/cloudevents/sdk-go/pkg/cloudevents/client",
     "github.com/cloudevents/sdk-go/pkg/cloudevents/context",
     "github.com/cloudevents/sdk-go/pkg/cloudevents/types",
+    "github.com/fsnotify/fsnotify",
     "github.com/ghodss/yaml",
     "github.com/google/go-cmp/cmp",
     "github.com/google/go-cmp/cmp/cmpopts",
@@ -1356,10 +1365,8 @@
     "github.com/google/go-containerregistry/pkg/v1",
     "github.com/google/go-containerregistry/pkg/v1/empty",
     "github.com/google/go-containerregistry/pkg/v1/layout",
-    "github.com/google/go-containerregistry/pkg/v1/partial",
     "github.com/google/go-containerregistry/pkg/v1/random",
     "github.com/google/go-containerregistry/pkg/v1/remote",
-    "github.com/google/go-containerregistry/pkg/v1/types",
     "github.com/hashicorp/go-multierror",
     "github.com/hashicorp/golang-lru",
     "github.com/jenkins-x/go-scm/scm",
