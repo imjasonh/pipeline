@@ -36,34 +36,23 @@ import (
 // verify that pipelinerun cancel lead to the the correct TaskRun statuses
 // and pod deletions.
 func TestTaskRunPipelineRunCancel(t *testing.T) {
-	type tests struct {
-		name    string
-		retries bool
-	}
-
-	tds := []tests{
-		{
-			name:    "With retries",
-			retries: true,
-		}, {
-			name:    "No retries",
-			retries: false,
-		},
-	}
-
 	t.Parallel()
 
-	for _, tdd := range tds {
-		t.Run(tdd.name, func(t *testing.T) {
-
-			var pipelineTask = tb.PipelineTask("foo", "banana")
-			if tdd.retries {
-				pipelineTask = tb.PipelineTask("foo", "banana", tb.Retries(1))
-			}
+	for _, tc := range []struct {
+		desc         string
+		pipelineTask tb.PipelineSpecOp
+	}{{
+		desc:         "With retries",
+		pipelineTask: tb.PipelineTask("foo", "banana"),
+	}, {
+		desc:         "No retries",
+		pipelineTask: tb.PipelineTask("foo", "banana", tb.Retries(1)),
+	}} {
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+			tc := tc
 
 			c, namespace := setup(t)
-			t.Parallel()
-
 			knativetest.CleanupOnInterrupt(func() { tearDown(t, c, namespace) }, t.Logf)
 			defer tearDown(t, c, namespace)
 
@@ -77,7 +66,7 @@ func TestTaskRunPipelineRunCancel(t *testing.T) {
 
 			t.Logf("Creating Pipeline in namespace %s", namespace)
 			pipeline := tb.Pipeline("tomatoes", namespace,
-				tb.PipelineSpec(pipelineTask),
+				tb.PipelineSpec(tc.pipelineTask),
 			)
 			if _, err := c.PipelineClient.Create(pipeline); err != nil {
 				t.Fatalf("Failed to create Pipeline `%s`: %s", "tomatoes", err)

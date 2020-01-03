@@ -43,6 +43,7 @@ import (
 
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1alpha1"
+	schedv1beta1 "k8s.io/client-go/kubernetes/typed/scheduling/v1beta1"
 	knativetest "knative.dev/pkg/test"
 )
 
@@ -56,6 +57,7 @@ type clients struct {
 	PipelineRunClient      v1alpha1.PipelineRunInterface
 	PipelineResourceClient v1alpha1.PipelineResourceInterface
 	ConditionClient        v1alpha1.ConditionInterface
+	PriorityClassClient    schedv1beta1.PriorityClassInterface
 }
 
 // newClients instantiates and returns several clientsets required for making requests to the
@@ -86,5 +88,11 @@ func newClients(t *testing.T, configPath, clusterName, namespace string) *client
 	c.PipelineRunClient = cs.TektonV1alpha1().PipelineRuns(namespace)
 	c.PipelineResourceClient = cs.TektonV1alpha1().PipelineResources(namespace)
 	c.ConditionClient = cs.TektonV1alpha1().Conditions(namespace)
+
+	sc, err := schedv1beta1.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("Creating scheduling v1beta1 client: %v", err)
+	}
+	c.PriorityClassClient = sc.PriorityClasses()
 	return c
 }

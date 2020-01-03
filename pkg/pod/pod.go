@@ -117,9 +117,6 @@ func MakePod(images pipeline.Images, taskRun *v1alpha1.TaskRun, taskSpec v1alpha
 	initContainers = append(initContainers, entrypointInit)
 	volumes = append(volumes, toolsVolume, downwardVolume)
 
-	// Zero out non-max resource requests, move max resource requests to the last step.
-	stepContainers = resolveResourceRequests(stepContainers)
-
 	// Add implicit env vars.
 	// They're prepended to the list, so that if the user specified any
 	// themselves their value takes precedence.
@@ -185,6 +182,10 @@ func MakePod(images pipeline.Images, taskRun *v1alpha1.TaskRun, taskSpec v1alpha
 	if taskRun.Spec.PodTemplate.PriorityClassName != nil {
 		priorityClassName = *taskRun.Spec.PodTemplate.PriorityClassName
 	}
+
+	// Zero out non-max resource requests, move max resource requests to the last step.
+	mergedPodContainers = resolveResourceRequests(mergedPodContainers)
+	initContainers = resolveResourceRequests(initContainers)
 
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
