@@ -29,6 +29,11 @@ import (
 // verify a very simple "hello world" TaskRun and PipelineRun failure
 // execution lead to the correct TaskRun status.
 func TestTaskRunPipelineRunStatus(t *testing.T) {
+	taskName := "task-name"
+	taskRunName := "task-run-name"
+	pipelineName := "pipeline-name"
+	pipelineRunName := "pipeline-run-name"
+
 	c, namespace := setup(t)
 	t.Parallel()
 
@@ -36,39 +41,39 @@ func TestTaskRunPipelineRunStatus(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	t.Logf("Creating Task and TaskRun in namespace %s", namespace)
-	task := tb.Task("banana", namespace, tb.TaskSpec(
-		tb.Step("foo", "busybox", tb.StepCommand("ls", "-la")),
+	task := tb.Task(taskName, tb.TaskSpec(
+		tb.Step("busybox", tb.StepScript("ls -la")),
 	))
 	if _, err := c.TaskClient.Create(task); err != nil {
 		t.Fatalf("Failed to create Task: %s", err)
 	}
-	taskRun := tb.TaskRun("apple", namespace, tb.TaskRunSpec(
-		tb.TaskRunTaskRef("banana"), tb.TaskRunServiceAccountName("inexistent"),
+	taskRun := tb.TaskRun(taskRunName, tb.TaskRunSpec(
+		tb.TaskRunTaskRef(taskName), tb.TaskRunServiceAccountName("inexistent"),
 	))
 	if _, err := c.TaskRunClient.Create(taskRun); err != nil {
 		t.Fatalf("Failed to create TaskRun: %s", err)
 	}
 
 	t.Logf("Waiting for TaskRun in namespace %s to fail", namespace)
-	if err := WaitForTaskRunState(c, "apple", TaskRunFailed("apple"), "BuildValidationFailed"); err != nil {
+	if err := WaitForTaskRunState(c, taskRunName, TaskRunFailed(taskRunName), "BuildValidationFailed"); err != nil {
 		t.Errorf("Error waiting for TaskRun to finish: %s", err)
 	}
 
-	pipeline := tb.Pipeline("tomatoes", namespace,
-		tb.PipelineSpec(tb.PipelineTask("foo", "banana")),
+	pipeline := tb.Pipeline(pipelineName,
+		tb.PipelineSpec(tb.PipelineTask("foo", taskName)),
 	)
-	pipelineRun := tb.PipelineRun("pear", namespace, tb.PipelineRunSpec(
-		"tomatoes", tb.PipelineRunServiceAccountName("inexistent"),
+	pipelineRun := tb.PipelineRun(pipelineRunName, tb.PipelineRunSpec(
+		pipelineName, tb.PipelineRunServiceAccountName("inexistent"),
 	))
 	if _, err := c.PipelineClient.Create(pipeline); err != nil {
-		t.Fatalf("Failed to create Pipeline `%s`: %s", "tomatoes", err)
+		t.Fatalf("Failed to create Pipeline `%s`: %s", pipelineName, err)
 	}
 	if _, err := c.PipelineRunClient.Create(pipelineRun); err != nil {
-		t.Fatalf("Failed to create PipelineRun `%s`: %s", "pear", err)
+		t.Fatalf("Failed to create PipelineRun `%s`: %s", pipelineRunName, err)
 	}
 
 	t.Logf("Waiting for PipelineRun in namespace %s to fail", namespace)
-	if err := WaitForPipelineRunState(c, "pear", pipelineRunTimeout, PipelineRunFailed("pear"), "BuildValidationFailed"); err != nil {
+	if err := WaitForPipelineRunState(c, pipelineRunName, pipelineRunTimeout, PipelineRunFailed(pipelineRunName), "BuildValidationFailed"); err != nil {
 		t.Errorf("Error waiting for TaskRun to finish: %s", err)
 	}
 }

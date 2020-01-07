@@ -22,14 +22,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"knative.dev/pkg/apis"
-
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tb "github.com/tektoncd/pipeline/test/builder"
+	"knative.dev/pkg/apis"
 )
 
 func TestCondition_Validate(t *testing.T) {
-	c := tb.Condition("condname", "foo",
+	c := tb.Condition("condname",
 		tb.ConditionSpec(
 			tb.ConditionSpecCheck("cname", "ubuntu"),
 			tb.ConditionParamSpec("paramname", v1alpha1.ParamTypeString),
@@ -47,14 +46,14 @@ func TestCondition_Invalidate(t *testing.T) {
 		expectedError apis.FieldError
 	}{{
 		name: "invalid meta",
-		cond: tb.Condition("invalid.,name", ""),
+		cond: tb.Condition("invalid.,name"),
 		expectedError: apis.FieldError{
 			Message: "Invalid resource name: special character . must not be present",
 			Paths:   []string{"metadata.name"},
 		},
 	}, {
 		name: "no image",
-		cond: tb.Condition("cond", "foo", tb.ConditionSpec(
+		cond: tb.Condition("cond", tb.ConditionSpec(
 			tb.ConditionSpecCheck("", ""),
 		)),
 		expectedError: apis.FieldError{

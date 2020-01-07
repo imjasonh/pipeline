@@ -61,11 +61,10 @@ type PipelineTaskConditionOp func(condition *v1alpha1.PipelineTaskCondition)
 
 // Pipeline creates a Pipeline with default values.
 // Any number of Pipeline modifier can be passed to transform it.
-func Pipeline(name, namespace string, ops ...PipelineOp) *v1alpha1.Pipeline {
+func Pipeline(name string, ops ...PipelineOp) *v1alpha1.Pipeline {
 	p := &v1alpha1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Name: name,
 		},
 	}
 
@@ -260,11 +259,10 @@ func PipelineTaskConditionResource(name, resource string) PipelineTaskConditionO
 
 // PipelineRun creates a PipelineRun with default values.
 // Any number of PipelineRun modifier can be passed to transform it.
-func PipelineRun(name, namespace string, ops ...PipelineRunOp) *v1alpha1.PipelineRun {
+func PipelineRun(name string, ops ...PipelineRunOp) *v1alpha1.PipelineRun {
 	pr := &v1alpha1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Name: name,
 		},
 		Spec: v1alpha1.PipelineRunSpec{},
 	}
@@ -451,11 +449,10 @@ func PipelineRunTaskRunsStatus(taskRunName string, status *v1alpha1.PipelineRunT
 
 // PipelineResource creates a PipelineResource with default values.
 // Any number of PipelineResource modifier can be passed to transform it.
-func PipelineResource(name, namespace string, ops ...PipelineResourceOp) *v1alpha1.PipelineResource {
+func PipelineResource(name string, ops ...PipelineResourceOp) *v1alpha1.PipelineResource {
 	resource := &v1alpha1.PipelineResource{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name: name,
 		},
 	}
 	for _, op := range ops {

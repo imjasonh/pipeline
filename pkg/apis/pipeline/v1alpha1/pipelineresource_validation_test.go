@@ -35,7 +35,7 @@ func TestResourceValidation_Invalid(t *testing.T) {
 	}{
 		{
 			name: "cluster with invalid url",
-			res: tb.PipelineResource("test-cluster-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("test-cluster-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeCluster,
 				tb.PipelineResourceSpecParam("name", "test_cluster_resource"),
 				tb.PipelineResourceSpecParam("url", "10.10.10"),
@@ -47,7 +47,7 @@ func TestResourceValidation_Invalid(t *testing.T) {
 		},
 		{
 			name: "cluster with missing auth",
-			res: tb.PipelineResource("test-cluster-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("test-cluster-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeCluster,
 				tb.PipelineResourceSpecParam("name", "test_cluster_resource"),
 				tb.PipelineResourceSpecParam("url", "http://10.10.10.10"),
@@ -56,7 +56,7 @@ func TestResourceValidation_Invalid(t *testing.T) {
 		},
 		{
 			name: "cluster with missing cadata",
-			res: tb.PipelineResource("test-cluster-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("test-cluster-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeCluster,
 				tb.PipelineResourceSpecParam("url", "http://10.10.10.10"),
 				tb.PipelineResourceSpecParam("Name", "admin"),
@@ -66,28 +66,28 @@ func TestResourceValidation_Invalid(t *testing.T) {
 			want: apis.ErrMissingField("CAData param"),
 		}, {
 			name: "storage with no type",
-			res: tb.PipelineResource("storage-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("storage-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeStorage,
 				tb.PipelineResourceSpecParam("no-type-param", "something"),
 			)),
 			want: apis.ErrMissingField("spec.params.type"),
 		}, {
 			name: "storage with unimplemented type",
-			res: tb.PipelineResource("storage-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("storage-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeStorage,
 				tb.PipelineResourceSpecParam("type", "not-implemented-yet"),
 			)),
 			want: apis.ErrInvalidValue("not-implemented-yet", "spec.params.type"),
 		}, {
 			name: "storage with gcs type with no location param",
-			res: tb.PipelineResource("storage-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("storage-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeStorage,
 				tb.PipelineResourceSpecParam("type", "gcs"),
 			)),
 			want: apis.ErrMissingField("spec.params.location"),
 		}, {
 			name: "storage with gcs type with empty location param",
-			res: tb.PipelineResource("storage-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("storage-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeStorage,
 				tb.PipelineResourceSpecParam("type", "gcs"),
 				tb.PipelineResourceSpecParam("location", ""),
@@ -123,7 +123,7 @@ func TestClusterResourceValidation_Valid(t *testing.T) {
 	}{
 		{
 			name: "success validate",
-			res: tb.PipelineResource("test-cluster-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("test-cluster-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeCluster,
 				tb.PipelineResourceSpecParam("name", "test_cluster_resource"),
 				tb.PipelineResourceSpecParam("url", "http://10.10.10.10"),
@@ -134,7 +134,7 @@ func TestClusterResourceValidation_Valid(t *testing.T) {
 		},
 		{
 			name: "specify insecure without cadata",
-			res: tb.PipelineResource("test-cluster-resource", "foo", tb.PipelineResourceSpec(
+			res: tb.PipelineResource("test-cluster-resource", tb.PipelineResourceSpec(
 				v1alpha1.PipelineResourceTypeCluster,
 				tb.PipelineResourceSpecParam("name", "test_cluster_resource"),
 				tb.PipelineResourceSpecParam("url", "http://10.10.10.10"),

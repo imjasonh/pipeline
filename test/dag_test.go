@@ -19,13 +19,13 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
-	clientset "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1alpha1"
 	tb "github.com/tektoncd/pipeline/test/builder"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	knativetest "knative.dev/pkg/test"
@@ -49,21 +49,21 @@ func TestDAGPipelineRun(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	// Create the Task that echoes text
-	echoTask := tb.Task("echo-task", namespace, tb.TaskSpec(
+	echoTask := tb.Task("echo-task", tb.TaskSpec(
 		tb.TaskInputs(
 			tb.InputsResource("repo", v1alpha1.PipelineResourceTypeGit),
 			tb.InputsParamSpec("text", v1alpha1.ParamTypeString, tb.ParamSpecDescription("The text that should be echoed")),
 		),
 		tb.TaskOutputs(tb.OutputsResource("repo", v1alpha1.PipelineResourceTypeGit)),
-		tb.Step("echo-text", "busybox", tb.StepCommand("echo"), tb.StepArgs("$(inputs.params.text)")),
-		tb.Step("ln", "busybox", tb.StepCommand("ln"), tb.StepArgs("-s", "$(inputs.resources.repo.path)", "$(outputs.resources.repo.path)")),
+		tb.Step("busybox", tb.StepScript("echo $(inputs.params.text)")),
+		tb.Step("busybox", tb.StepScript("ln -s $(inputs.resources.repo.path) $(outputs.resources.repo.path)")),
 	))
 	if _, err := c.TaskClient.Create(echoTask); err != nil {
 		t.Fatalf("Failed to create echo Task: %s", err)
 	}
 
 	// Create the repo PipelineResource (doesn't really matter which repo we use)
-	repoResource := tb.PipelineResource("repo", namespace, tb.PipelineResourceSpec(
+	repoResource := tb.PipelineResource("repo", tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeGit,
 		tb.PipelineResourceSpecParam("Url", "https://github.com/githubtraining/example-basic"),
 	))
@@ -73,7 +73,7 @@ func TestDAGPipelineRun(t *testing.T) {
 
 	// Intentionally declaring Tasks in a mixed up order to ensure the order
 	// of execution isn't at all dependent on the order they are declared in
-	pipeline := tb.Pipeline("dag-pipeline", namespace, tb.PipelineSpec(
+	pipeline := tb.Pipeline("dag-pipeline", tb.PipelineSpec(
 		tb.PipelineDeclaredResource("repo", "git"),
 		tb.PipelineTask("pipeline-task-3", "echo-task",
 			tb.PipelineTaskInputResource("repo", "repo", tb.From("pipeline-task-2-parallel-1", "pipeline-task-2-parallel-2")),
@@ -105,7 +105,7 @@ func TestDAGPipelineRun(t *testing.T) {
 	if _, err := c.PipelineClient.Create(pipeline); err != nil {
 		t.Fatalf("Failed to create dag-pipeline: %s", err)
 	}
-	pipelineRun := tb.PipelineRun("dag-pipeline-run", namespace, tb.PipelineRunSpec("dag-pipeline",
+	pipelineRun := tb.PipelineRun("dag-pipeline-run", tb.PipelineRunSpec("dag-pipeline",
 		tb.PipelineRunResourceBinding("repo", tb.PipelineResourceBindingRef("repo")),
 	))
 	if _, err := c.PipelineRunClient.Create(pipelineRun); err != nil {
@@ -117,69 +117,30 @@ func TestDAGPipelineRun(t *testing.T) {
 	}
 
 	t.Logf("Verifying order of execution")
-	times := getTaskStartTimes(t, c.TaskRunClient)
-	vefifyExpectedOrder(t, times)
-}
-
-type runTime struct {
-	name string
-	t    time.Time
-}
-
-type runTimes []runTime
-
-func (f runTimes) Len() int {
-	return len(f)
-}
-
-func (f runTimes) Less(i, j int) bool {
-	return f[i].t.Before(f[j].t)
-}
-
-func (f runTimes) Swap(i, j int) {
-	f[i], f[j] = f[j], f[i]
-}
-
-func getTaskStartTimes(t *testing.T, c clientset.TaskRunInterface) runTimes {
-	taskRuns, err := c.List(metav1.ListOptions{})
+	taskRuns, err := c.TaskRunClient.List(metav1.ListOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't get TaskRuns (so that we could check when they executed): %v", err)
 	}
-	times := runTimes{}
-	for _, t := range taskRuns.Items {
-		times = append(times, runTime{
-			name: t.Name,
-			t:    t.Status.StartTime.Time,
-		})
-	}
-	return times
+	vefifyExpectedOrder(t, taskRuns.Items)
 }
 
-func vefifyExpectedOrder(t *testing.T, times runTimes) {
-	if len(times) != 5 {
-		t.Fatalf("Expected 5 Taskruns to have executed but only got start times for %d Taskruns", len(times))
+func vefifyExpectedOrder(t *testing.T, taskRuns []v1alpha1.TaskRun) {
+	if len(taskRuns) != 5 {
+		t.Fatalf("Expected 5 TaskRuns, got %d", len(taskRuns))
 	}
 
-	sort.Sort(times)
+	sort.Slice(taskRuns, func(i, j int) bool {
+		return taskRuns[i].Status.StartTime.Time.Before(taskRuns[j].Status.StartTime.Time)
+	})
 
-	if !strings.HasPrefix(times[0].name, "dag-pipeline-run-pipeline-task-1") {
-		t.Errorf("Expected first task to execute first, but %q was first", times[0].name)
-	}
-	if !strings.HasPrefix(times[1].name, "dag-pipeline-run-pipeline-task-2") {
-		t.Errorf("Expected parallel tasks to run second & third, but %q was second", times[1].name)
-	}
-	if !strings.HasPrefix(times[2].name, "dag-pipeline-run-pipeline-task-2") {
-		t.Errorf("Expected parallel tasks to run second & third, but %q was third", times[2].name)
-	}
-	if !strings.HasPrefix(times[3].name, "dag-pipeline-run-pipeline-task-3") {
-		t.Errorf("Expected third task to execute third, but %q was third", times[3].name)
-	}
-	if !strings.HasPrefix(times[4].name, "dag-pipeline-run-pipeline-task-4") {
-		t.Errorf("Expected fourth task to execute fourth, but %q was fourth", times[4].name)
+	for i := 1; i <= 4; i++ {
+		if !strings.HasPrefix(taskRuns[i].Name, fmt.Sprintf("dag-pipeline-run-pipeline-task-%d", i)) {
+			t.Errorf("Expected task %d to be task %d, was %q", i, i, taskRuns[i].Name)
+		}
 	}
 
 	// Check that the two tasks that can run in parallel did
-	parallelDiff := times[2].t.Sub(times[1].t)
+	parallelDiff := taskRuns[2].Status.StartTime.Time.Sub(taskRuns[1].Status.StartTime.Time)
 	if parallelDiff > (time.Second * 5) {
 		t.Errorf("Expected parallel tasks to execute more or less at the same time, but they were %v apart", parallelDiff)
 	}

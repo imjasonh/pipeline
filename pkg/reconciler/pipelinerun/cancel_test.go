@@ -37,35 +37,35 @@ func TestCancelPipelineRun(t *testing.T) {
 		taskRuns      []*v1alpha1.TaskRun
 	}{{
 		name: "no-resolved-taskrun",
-		pipelineRun: tb.PipelineRun("test-pipeline-run-cancelled", "foo",
+		pipelineRun: tb.PipelineRun("test-pipeline-run-cancelled",
 			tb.PipelineRunSpec("test-pipeline",
 				tb.PipelineRunCancelled,
 			),
 		),
 	}, {
 		name: "1-of-resolved-taskrun",
-		pipelineRun: tb.PipelineRun("test-pipeline-run-cancelled", "foo",
+		pipelineRun: tb.PipelineRun("test-pipeline-run-cancelled",
 			tb.PipelineRunSpec("test-pipeline",
 				tb.PipelineRunCancelled,
 			),
 		),
 		pipelineState: []*resources.ResolvedPipelineRunTask{
-			{TaskRunName: "t1", TaskRun: tb.TaskRun("t1", "foo")},
+			{TaskRunName: "t1", TaskRun: tb.TaskRun("t1")},
 			{TaskRunName: "t2"},
 		},
-		taskRuns: []*v1alpha1.TaskRun{tb.TaskRun("t1", "foo")},
+		taskRuns: []*v1alpha1.TaskRun{tb.TaskRun("t1")},
 	}, {
 		name: "resolved-taskruns",
-		pipelineRun: tb.PipelineRun("test-pipeline-run-cancelled", "foo",
+		pipelineRun: tb.PipelineRun("test-pipeline-run-cancelled",
 			tb.PipelineRunSpec("test-pipeline",
 				tb.PipelineRunCancelled,
 			),
 		),
 		pipelineState: []*resources.ResolvedPipelineRunTask{
-			{TaskRunName: "t1", TaskRun: tb.TaskRun("t1", "foo")},
-			{TaskRunName: "t2", TaskRun: tb.TaskRun("t2", "foo")},
+			{TaskRunName: "t1", TaskRun: tb.TaskRun("t1")},
+			{TaskRunName: "t2", TaskRun: tb.TaskRun("t2")},
 		},
-		taskRuns: []*v1alpha1.TaskRun{tb.TaskRun("t1", "foo"), tb.TaskRun("t2", "foo")},
+		taskRuns: []*v1alpha1.TaskRun{tb.TaskRun("t1"), tb.TaskRun("t2")},
 	}}
 	for _, tc := range testCases {
 		tc := tc
@@ -87,7 +87,7 @@ func TestCancelPipelineRun(t *testing.T) {
 			if cond.IsTrue() {
 				t.Errorf("Expected PipelineRun status to be complete and false, but was %v", cond)
 			}
-			l, err := c.Pipeline.TektonV1alpha1().TaskRuns("foo").List(metav1.ListOptions{})
+			l, err := c.Pipeline.TektonV1alpha1().TaskRuns("").List(metav1.ListOptions{})
 			if err != nil {
 				t.Fatal(err)
 			}

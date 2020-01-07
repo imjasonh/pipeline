@@ -17,10 +17,9 @@ limitations under the License.
 package builder
 
 import (
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 )
 
 // ConditionOp is an operation which modifies a Condition struct.
@@ -31,11 +30,10 @@ type ConditionSpecOp func(spec *v1alpha1.ConditionSpec)
 
 // Condition creates a Condition with default values.
 // Any number of Condition modifiers can be passed to transform it.
-func Condition(name, namespace string, ops ...ConditionOp) *v1alpha1.Condition {
+func Condition(name string, ops ...ConditionOp) *v1alpha1.Condition {
 	condition := &v1alpha1.Condition{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Name: name,
 		},
 	}
 	for _, op := range ops {

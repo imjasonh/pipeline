@@ -37,24 +37,20 @@ import (
 
 // Test case for providing recorder in the option
 func TestRecorderOptions(t *testing.T) {
-
-	prs := []*v1alpha1.PipelineRun{tb.PipelineRun("test-pipeline-run-completed", "foo",
-		tb.PipelineRunSpec("test-pipeline", tb.PipelineRunServiceAccountName("test-sa")),
-		tb.PipelineRunStatus(tb.PipelineRunStatusCondition(apis.Condition{
-			Type:    apis.ConditionSucceeded,
-			Status:  corev1.ConditionTrue,
-			Reason:  resources.ReasonSucceeded,
-			Message: "All Tasks have completed executing",
-		})),
-	)}
-	ps := []*v1alpha1.Pipeline{tb.Pipeline("test-pipeline", "foo", tb.PipelineSpec(
-		tb.PipelineTask("hello-world-1", "hellow-world"),
-	))}
-	ts := []*v1alpha1.Task{tb.Task("hello-world", "foo")}
 	d := test.Data{
-		PipelineRuns: prs,
-		Pipelines:    ps,
-		Tasks:        ts,
+		PipelineRuns: []*v1alpha1.PipelineRun{tb.PipelineRun("test-pipeline-run-completed",
+			tb.PipelineRunSpec("test-pipeline", tb.PipelineRunServiceAccountName("test-sa")),
+			tb.PipelineRunStatus(tb.PipelineRunStatusCondition(apis.Condition{
+				Type:    apis.ConditionSucceeded,
+				Status:  corev1.ConditionTrue,
+				Reason:  resources.ReasonSucceeded,
+				Message: "All Tasks have completed executing",
+			})),
+		)},
+		Pipelines: []*v1alpha1.Pipeline{tb.Pipeline("test-pipeline", tb.PipelineSpec(
+			tb.PipelineTask("hello-world-1", "hellow-world"),
+		))},
+		Tasks: []*v1alpha1.Task{tb.Task("hello-world")},
 	}
 	ctx, _ := ttesting.SetupFakeContext(t)
 	ctx, cancel := context.WithCancel(ctx)

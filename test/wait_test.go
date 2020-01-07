@@ -28,10 +28,6 @@ import (
 	rtesting "knative.dev/pkg/reconciler/testing"
 )
 
-const (
-	waitNamespace = "wait"
-)
-
 var (
 	success = apis.Condition{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}
 	failure = apis.Condition{Type: apis.ConditionSucceeded, Status: corev1.ConditionFalse}
@@ -40,7 +36,7 @@ var (
 func TestWaitForTaskRunStateSucceed(t *testing.T) {
 	d := Data{
 		TaskRuns: []*v1alpha1.TaskRun{
-			tb.TaskRun("foo", waitNamespace, tb.TaskRunStatus(
+			tb.TaskRun("foo", tb.TaskRunStatus(
 				tb.StatusCondition(success),
 			)),
 		},
@@ -55,7 +51,7 @@ func TestWaitForTaskRunStateSucceed(t *testing.T) {
 func TestWaitForTaskRunStateFailed(t *testing.T) {
 	d := Data{
 		TaskRuns: []*v1alpha1.TaskRun{
-			tb.TaskRun("foo", waitNamespace, tb.TaskRunStatus(
+			tb.TaskRun("foo", tb.TaskRunStatus(
 				tb.StatusCondition(failure),
 			)),
 		},
@@ -71,7 +67,7 @@ func TestWaitForTaskRunStateFailed(t *testing.T) {
 func TestWaitForPipelineRunStateSucceed(t *testing.T) {
 	d := Data{
 		PipelineRuns: []*v1alpha1.PipelineRun{
-			tb.PipelineRun("bar", waitNamespace, tb.PipelineRunStatus(
+			tb.PipelineRun("bar", tb.PipelineRunStatus(
 				tb.PipelineRunStatusCondition(success),
 			)),
 		},
@@ -87,7 +83,7 @@ func TestWaitForPipelineRunStateSucceed(t *testing.T) {
 func TestWaitForPipelineRunStateFailed(t *testing.T) {
 	d := Data{
 		PipelineRuns: []*v1alpha1.PipelineRun{
-			tb.PipelineRun("bar", waitNamespace, tb.PipelineRunStatus(
+			tb.PipelineRun("bar", tb.PipelineRunStatus(
 				tb.PipelineRunStatusCondition(failure),
 			)),
 		},
@@ -106,10 +102,10 @@ func fakeClients(t *testing.T, d Data) (*clients, func()) {
 	fakeClients, _ := SeedTestData(t, ctx, d)
 	// 	c.KubeClient = fakeClients.Kube
 	return &clients{
-		PipelineClient:         fakeClients.Pipeline.TektonV1alpha1().Pipelines(waitNamespace),
-		PipelineResourceClient: fakeClients.Pipeline.TektonV1alpha1().PipelineResources(waitNamespace),
-		PipelineRunClient:      fakeClients.Pipeline.TektonV1alpha1().PipelineRuns(waitNamespace),
-		TaskClient:             fakeClients.Pipeline.TektonV1alpha1().Tasks(waitNamespace),
-		TaskRunClient:          fakeClients.Pipeline.TektonV1alpha1().TaskRuns(waitNamespace),
+		PipelineClient:         fakeClients.Pipeline.TektonV1alpha1().Pipelines(""),
+		PipelineResourceClient: fakeClients.Pipeline.TektonV1alpha1().PipelineResources(""),
+		PipelineRunClient:      fakeClients.Pipeline.TektonV1alpha1().PipelineRuns(""),
+		TaskClient:             fakeClients.Pipeline.TektonV1alpha1().Tasks(""),
+		TaskRunClient:          fakeClients.Pipeline.TektonV1alpha1().TaskRuns(""),
 	}, cancel
 }

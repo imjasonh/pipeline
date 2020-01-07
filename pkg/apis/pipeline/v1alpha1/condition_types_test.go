@@ -19,15 +19,14 @@ package v1alpha1_test
 import (
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/apis"
-
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tb "github.com/tektoncd/pipeline/test/builder"
+	corev1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/apis"
 )
 
 func TestConditionCheck_IsDone(t *testing.T) {
-	tr := tb.TaskRun("", "", tb.TaskRunStatus(tb.StatusCondition(
+	tr := tb.TaskRun("", tb.TaskRunStatus(tb.StatusCondition(
 		apis.Condition{
 			Type:   apis.ConditionSucceeded,
 			Status: corev1.ConditionFalse,
@@ -41,7 +40,7 @@ func TestConditionCheck_IsDone(t *testing.T) {
 }
 
 func TestConditionCheck_IsSuccessful(t *testing.T) {
-	tr := tb.TaskRun("", "", tb.TaskRunStatus(tb.StatusCondition(
+	tr := tb.TaskRun("", tb.TaskRunStatus(tb.StatusCondition(
 		apis.Condition{
 			Type:   apis.ConditionSucceeded,
 			Status: corev1.ConditionTrue,

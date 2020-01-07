@@ -20,13 +20,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tb "github.com/tektoncd/pipeline/test/builder"
 )
 
 func Test_Invalid_NewImageResource(t *testing.T) {
-	r := tb.PipelineResource("git-resource", "default", tb.PipelineResourceSpec(v1alpha1.PipelineResourceTypeGit))
+	r := tb.PipelineResource("git-resource", tb.PipelineResourceSpec(v1alpha1.PipelineResourceTypeGit))
 
 	_, err := v1alpha1.NewImageResource(r)
 	if err == nil {
@@ -44,7 +43,6 @@ func Test_Valid_NewImageResource(t *testing.T) {
 
 	r := tb.PipelineResource(
 		"image-resource",
-		"default",
 		tb.PipelineResourceSpec(
 			v1alpha1.PipelineResourceTypeImage,
 			tb.PipelineResourceSpecParam("URL", "https://test.com/test/test"),

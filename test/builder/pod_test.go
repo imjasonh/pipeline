@@ -35,7 +35,7 @@ func TestPod(t *testing.T) {
 		Name:         "tools-volume",
 		VolumeSource: corev1.VolumeSource{},
 	}
-	got := tb.Pod("foo-pod-123456", "foo",
+	got := tb.Pod("foo-pod-123456",
 		tb.PodAnnotation("annotation", "annotation-value"),
 		tb.PodLabel("label", "label-value"),
 		tb.PodOwnerReference("TaskRun", "taskrun-foo",
@@ -64,8 +64,7 @@ func TestPod(t *testing.T) {
 	)
 	want := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "foo",
-			Name:      "foo-pod-123456",
+			Name: "foo-pod-123456",
 			Annotations: map[string]string{
 				"annotation": "annotation-value",
 			},

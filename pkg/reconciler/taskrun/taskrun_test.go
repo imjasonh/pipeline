@@ -85,11 +85,11 @@ var (
 	cloudEventTarget1 = "https://foo"
 	cloudEventTarget2 = "https://bar"
 
-	simpleStep  = tb.Step("simple-step", "foo", tb.StepCommand("/mycmd"))
-	simpleTask  = tb.Task("test-task", "foo", tb.TaskSpec(simpleStep))
+	simpleStep  = tb.Step("image", tb.StepCommand("/mycmd"))
+	simpleTask  = tb.Task("test-task", tb.TaskSpec(simpleStep))
 	clustertask = tb.ClusterTask("test-cluster-task", tb.ClusterTaskSpec(simpleStep))
 
-	outputTask = tb.Task("test-output-task", "foo", tb.TaskSpec(
+	outputTask = tb.Task("test-output-task", tb.TaskSpec(
 		simpleStep, tb.TaskInputs(
 			tb.InputsResource(gitResource.Name, v1alpha1.PipelineResourceTypeGit),
 			tb.InputsResource(anotherGitResource.Name, v1alpha1.PipelineResourceTypeGit),
@@ -97,9 +97,9 @@ var (
 		tb.TaskOutputs(tb.OutputsResource(gitResource.Name, v1alpha1.PipelineResourceTypeGit)),
 	))
 
-	saTask = tb.Task("test-with-sa", "foo", tb.TaskSpec(tb.Step("sa-step", "foo", tb.StepCommand("/mycmd"))))
+	saTask = tb.Task("test-with-sa", tb.TaskSpec(tb.Step("sa-step", tb.StepCommand("/mycmd"))))
 
-	templatedTask = tb.Task("test-task-with-substitution", "foo", tb.TaskSpec(
+	templatedTask = tb.Task("test-task-with-substitution", tb.TaskSpec(
 		tb.TaskInputs(
 			tb.InputsResource("workspace", v1alpha1.PipelineResourceTypeGit),
 			tb.InputsParamSpec("myarg", v1alpha1.ParamTypeString), tb.InputsParamSpec("myarghasdefault", v1alpha1.ParamTypeString, tb.ParamSpecDefault("dont see me")),
@@ -107,13 +107,13 @@ var (
 			tb.InputsParamSpec("configmapname", v1alpha1.ParamTypeString),
 		),
 		tb.TaskOutputs(tb.OutputsResource("myimage", v1alpha1.PipelineResourceTypeImage)),
-		tb.Step("mycontainer", "myimage", tb.StepCommand("/mycmd"), tb.StepArgs(
+		tb.Step("myimage", tb.StepCommand("/mycmd"), tb.StepArgs(
 			"--my-arg=$(inputs.params.myarg)",
 			"--my-arg-with-default=$(inputs.params.myarghasdefault)",
 			"--my-arg-with-default2=$(inputs.params.myarghasdefault2)",
 			"--my-additional-arg=$(outputs.resources.myimage.url)",
 		)),
-		tb.Step("myothercontainer", "myotherimage", tb.StepCommand("/mycmd"), tb.StepArgs(
+		tb.Step("myotherimage", tb.StepCommand("/mycmd"), tb.StepArgs(
 			"--my-other-arg=$(inputs.resources.workspace.url)",
 		)),
 		tb.TaskVolume("volume-configmap", tb.VolumeSource(corev1.VolumeSource{
@@ -125,26 +125,26 @@ var (
 		})),
 	))
 
-	twoOutputsTask = tb.Task("test-two-output-task", "foo", tb.TaskSpec(
+	twoOutputsTask = tb.Task("test-two-output-task", tb.TaskSpec(
 		simpleStep, tb.TaskOutputs(
 			tb.OutputsResource(cloudEventResource.Name, v1alpha1.PipelineResourceTypeCloudEvent),
 			tb.OutputsResource(anotherCloudEventResource.Name, v1alpha1.PipelineResourceTypeCloudEvent),
 		),
 	))
 
-	gitResource = tb.PipelineResource("git-resource", "foo", tb.PipelineResourceSpec(
+	gitResource = tb.PipelineResource("git-resource", tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeGit, tb.PipelineResourceSpecParam("URL", "https://foo.git"),
 	))
-	anotherGitResource = tb.PipelineResource("another-git-resource", "foo", tb.PipelineResourceSpec(
+	anotherGitResource = tb.PipelineResource("another-git-resource", tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeGit, tb.PipelineResourceSpecParam("URL", "https://foobar.git"),
 	))
-	imageResource = tb.PipelineResource("image-resource", "foo", tb.PipelineResourceSpec(
+	imageResource = tb.PipelineResource("image-resource", tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeImage, tb.PipelineResourceSpecParam("URL", "gcr.io/kristoff/sven"),
 	))
-	cloudEventResource = tb.PipelineResource("cloud-event-resource", "foo", tb.PipelineResourceSpec(
+	cloudEventResource = tb.PipelineResource("cloud-event-resource", tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeCloudEvent, tb.PipelineResourceSpecParam("TargetURI", cloudEventTarget1),
 	))
-	anotherCloudEventResource = tb.PipelineResource("another-cloud-event-resource", "foo", tb.PipelineResourceSpec(
+	anotherCloudEventResource = tb.PipelineResource("another-cloud-event-resource", tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeCloudEvent, tb.PipelineResourceSpecParam("TargetURI", cloudEventTarget2),
 	))
 
@@ -239,10 +239,10 @@ func getTaskRunController(t *testing.T, d test.Data) (test.Assets, func()) {
 }
 
 func TestReconcile_ExplicitDefaultSA(t *testing.T) {
-	taskRunSuccess := tb.TaskRun("test-taskrun-run-success", "foo", tb.TaskRunSpec(
+	taskRunSuccess := tb.TaskRun("test-taskrun-run-success", tb.TaskRunSpec(
 		tb.TaskRunTaskRef(simpleTask.Name, tb.TaskRefAPIVersion("a1")),
 	))
-	taskRunWithSaSuccess := tb.TaskRun("test-taskrun-with-sa-run-success", "foo", tb.TaskRunSpec(
+	taskRunWithSaSuccess := tb.TaskRun("test-taskrun-with-sa-run-success", tb.TaskRunSpec(
 		tb.TaskRunTaskRef(saTask.Name, tb.TaskRefAPIVersion("a1")),
 		tb.TaskRunServiceAccountName("test-sa"),
 	))
@@ -403,13 +403,13 @@ func TestReconcile_ExplicitDefaultSA(t *testing.T) {
 }
 
 func TestReconcile(t *testing.T) {
-	taskRunSuccess := tb.TaskRun("test-taskrun-run-success", "foo", tb.TaskRunSpec(
+	taskRunSuccess := tb.TaskRun("test-taskrun-run-success", tb.TaskRunSpec(
 		tb.TaskRunTaskRef(simpleTask.Name, tb.TaskRefAPIVersion("a1")),
 	))
-	taskRunWithSaSuccess := tb.TaskRun("test-taskrun-with-sa-run-success", "foo", tb.TaskRunSpec(
+	taskRunWithSaSuccess := tb.TaskRun("test-taskrun-with-sa-run-success", tb.TaskRunSpec(
 		tb.TaskRunTaskRef(saTask.Name, tb.TaskRefAPIVersion("a1")), tb.TaskRunServiceAccountName("test-sa"),
 	))
-	taskRunSubstitution := tb.TaskRun("test-taskrun-substitution", "foo", tb.TaskRunSpec(
+	taskRunSubstitution := tb.TaskRun("test-taskrun-substitution", tb.TaskRunSpec(
 		tb.TaskRunTaskRef(templatedTask.Name, tb.TaskRefAPIVersion("a1")),
 		tb.TaskRunInputs(
 			tb.TaskRunInputsParam("myarg", "foo"),
@@ -419,7 +419,7 @@ func TestReconcile(t *testing.T) {
 		),
 		tb.TaskRunOutputs(tb.TaskRunOutputsResource("myimage", tb.TaskResourceBindingRef("image-resource"))),
 	))
-	taskRunInputOutput := tb.TaskRun("test-taskrun-input-output", "foo",
+	taskRunInputOutput := tb.TaskRun("test-taskrun-input-output",
 		tb.TaskRunOwnerReference("PipelineRun", "test"),
 		tb.TaskRunSpec(
 			tb.TaskRunTaskRef(outputTask.Name),
@@ -441,7 +441,7 @@ func TestReconcile(t *testing.T) {
 			),
 		),
 	)
-	taskRunWithTaskSpec := tb.TaskRun("test-taskrun-with-taskspec", "foo", tb.TaskRunSpec(
+	taskRunWithTaskSpec := tb.TaskRun("test-taskrun-with-taskspec", tb.TaskRunSpec(
 		tb.TaskRunInputs(
 			tb.TaskRunInputsParam("myarg", "foo"),
 			tb.TaskRunInputsResource("workspace", tb.TaskResourceBindingRef(gitResource.Name)),
@@ -451,13 +451,13 @@ func TestReconcile(t *testing.T) {
 				tb.InputsResource("workspace", v1alpha1.PipelineResourceTypeGit),
 				tb.InputsParamSpec("myarg", v1alpha1.ParamTypeString, tb.ParamSpecDefault("mydefault")),
 			),
-			tb.Step("mycontainer", "myimage", tb.StepCommand("/mycmd"),
+			tb.Step("myimage", tb.StepCommand("/mycmd"),
 				tb.StepArgs("--my-arg=$(inputs.params.myarg)"),
 			),
 		),
 	))
 
-	taskRunWithResourceSpecAndTaskSpec := tb.TaskRun("test-taskrun-with-resource-spec", "foo", tb.TaskRunSpec(
+	taskRunWithResourceSpecAndTaskSpec := tb.TaskRun("test-taskrun-with-resource-spec", tb.TaskRunSpec(
 		tb.TaskRunInputs(
 			tb.TaskRunInputsResource("workspace", tb.TaskResourceBindingResourceSpec(&v1alpha1.PipelineResourceSpec{
 				Type: v1alpha1.PipelineResourceTypeGit,
@@ -473,15 +473,15 @@ func TestReconcile(t *testing.T) {
 		tb.TaskRunTaskSpec(
 			tb.TaskInputs(
 				tb.InputsResource("workspace", v1alpha1.PipelineResourceTypeGit)),
-			tb.Step("mystep", "ubuntu", tb.StepCommand("/mycmd")),
+			tb.Step("ubuntu", tb.StepCommand("/mycmd")),
 		),
 	))
 
-	taskRunWithClusterTask := tb.TaskRun("test-taskrun-with-cluster-task", "foo",
+	taskRunWithClusterTask := tb.TaskRun("test-taskrun-with-cluster-task",
 		tb.TaskRunSpec(tb.TaskRunTaskRef(clustertask.Name, tb.TaskRefKind(v1alpha1.ClusterTaskKind))),
 	)
 
-	taskRunWithLabels := tb.TaskRun("test-taskrun-with-labels", "foo",
+	taskRunWithLabels := tb.TaskRun("test-taskrun-with-labels",
 		tb.TaskRunLabel("TaskRunLabel", "TaskRunValue"),
 		tb.TaskRunLabel(taskRunNameLabelKey, "WillNotBeUsed"),
 		tb.TaskRunSpec(
@@ -489,14 +489,14 @@ func TestReconcile(t *testing.T) {
 		),
 	)
 
-	taskRunWithAnnotations := tb.TaskRun("test-taskrun-with-annotations", "foo",
+	taskRunWithAnnotations := tb.TaskRun("test-taskrun-with-annotations",
 		tb.TaskRunAnnotation("TaskRunAnnotation", "TaskRunValue"),
 		tb.TaskRunSpec(
 			tb.TaskRunTaskRef(simpleTask.Name),
 		),
 	)
 
-	taskRunWithPod := tb.TaskRun("test-taskrun-with-pod", "foo",
+	taskRunWithPod := tb.TaskRun("test-taskrun-with-pod",
 		tb.TaskRunSpec(tb.TaskRunTaskRef(simpleTask.Name)),
 	)
 

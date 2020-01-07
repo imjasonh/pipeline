@@ -29,58 +29,14 @@ import (
 	knativetest "knative.dev/pkg/test"
 )
 
-const (
-	gitSourceResourceName  = "git-source-resource"
-	gitTestTaskName        = "git-check-task"
-	gitTestPipelineName    = "git-check-pipeline"
-	gitTestPipelineRunName = "git-check-pipeline-run"
-)
-
-// TestGitPipelineRun is an integration test that will verify the source code is either fetched or pulled
-// successfully under different revision inputs (branch, commitid, tag, ref)
-func TestGitPipelineRun(t *testing.T) {
-	t.Parallel()
-
-	revisions := []string{"master", "c15aced0e5aaee6456fbe6f7a7e95e0b5b3b2b2f", "c15aced", "release-0.1", "v0.1.0", "refs/pull/347/head"}
-
-	for _, revision := range revisions {
-
-		t.Run(revision, func(t *testing.T) {
-			c, namespace := setup(t)
-			knativetest.CleanupOnInterrupt(func() { tearDown(t, c, namespace) }, t.Logf)
-			defer tearDown(t, c, namespace)
-
-			t.Logf("Creating Git PipelineResource %s", gitSourceResourceName)
-			if _, err := c.PipelineResourceClient.Create(getGitPipelineResource(namespace, revision)); err != nil {
-				t.Fatalf("Failed to create Pipeline Resource `%s`: %s", gitSourceResourceName, err)
-			}
-
-			t.Logf("Creating Task %s", gitTestTaskName)
-			if _, err := c.TaskClient.Create(getGitCheckTask(namespace)); err != nil {
-				t.Fatalf("Failed to create Task `%s`: %s", gitTestTaskName, err)
-			}
-
-			t.Logf("Creating Pipeline %s", gitTestPipelineName)
-			if _, err := c.PipelineClient.Create(getGitCheckPipeline(namespace)); err != nil {
-				t.Fatalf("Failed to create Pipeline `%s`: %s", gitTestPipelineName, err)
-			}
-
-			t.Logf("Creating PipelineRun %s", gitTestPipelineRunName)
-			if _, err := c.PipelineRunClient.Create(getGitCheckPipelineRun(namespace)); err != nil {
-				t.Fatalf("Failed to create Pipeline `%s`: %s", gitTestPipelineRunName, err)
-			}
-
-			if err := WaitForPipelineRunState(c, gitTestPipelineRunName, timeout, PipelineRunSucceed(gitTestPipelineRunName), "PipelineRunCompleted"); err != nil {
-				t.Errorf("Error waiting for PipelineRun %s to finish: %s", gitTestPipelineRunName, err)
-				t.Fatalf("PipelineRun execution failed")
-			}
-		})
-	}
-}
-
 // TestGitPipelineRunFail is a test to ensure that the code extraction from github fails as expected when
 // an invalid revision is passed on the pipelineresource.
 func TestGitPipelineRunFail(t *testing.T) {
+	gitSourceResourceName := "git-source-resource"
+	gitTestTaskName := "git-check-task"
+	gitTestPipelineName := "git-check-pipeline"
+	gitTestPipelineRunName := "git-check-pipeline-run"
+
 	t.Parallel()
 
 	c, namespace := setup(t)
@@ -88,22 +44,37 @@ func TestGitPipelineRunFail(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	t.Logf("Creating Git PipelineResource %s", gitSourceResourceName)
-	if _, err := c.PipelineResourceClient.Create(getGitPipelineResource(namespace, "Idontexistrabbitmonkeydonkey")); err != nil {
+	if _, err := c.PipelineResourceClient.Create(tb.PipelineResource(gitSourceResourceName, tb.PipelineResourceSpec(
+		v1alpha1.PipelineResourceTypeGit,
+		tb.PipelineResourceSpecParam("Url", "https://github.com/tektoncd/pipeline"),
+		tb.PipelineResourceSpecParam("Revision", "Idontexistrabbitmonkey"),
+	))); err != nil {
 		t.Fatalf("Failed to create Pipeline Resource `%s`: %s", gitSourceResourceName, err)
 	}
 
 	t.Logf("Creating Task %s", gitTestTaskName)
-	if _, err := c.TaskClient.Create(getGitCheckTask(namespace)); err != nil {
+	if _, err := c.TaskClient.Create(tb.Task(gitTestTaskName, tb.TaskSpec(
+		tb.TaskInputs(tb.InputsResource("gitsource", v1alpha1.PipelineResourceTypeGit)),
+		tb.Step("alpine/git", tb.StepScript("git --git-dir=/workspace/gitsource/.git show")),
+	))); err != nil {
 		t.Fatalf("Failed to create Task `%s`: %s", gitTestTaskName, err)
 	}
 
 	t.Logf("Creating Pipeline %s", gitTestPipelineName)
-	if _, err := c.PipelineClient.Create(getGitCheckPipeline(namespace)); err != nil {
+	if _, err := c.PipelineClient.Create(tb.Pipeline(gitTestPipelineName, tb.PipelineSpec(
+		tb.PipelineDeclaredResource("git-repo", "git"),
+		tb.PipelineTask("git-check", gitTestTaskName,
+			tb.PipelineTaskInputResource("gitsource", "git-repo"),
+		),
+	))); err != nil {
 		t.Fatalf("Failed to create Pipeline `%s`: %s", gitTestPipelineName, err)
 	}
 
 	t.Logf("Creating PipelineRun %s", gitTestPipelineRunName)
-	if _, err := c.PipelineRunClient.Create(getGitCheckPipelineRun(namespace)); err != nil {
+	if _, err := c.PipelineRunClient.Create(tb.PipelineRun(gitTestPipelineRunName, tb.PipelineRunSpec(
+		gitTestPipelineName,
+		tb.PipelineRunResourceBinding("git-repo", tb.PipelineResourceBindingRef(gitSourceResourceName)),
+	))); err != nil {
 		t.Fatalf("Failed to create Pipeline `%s`: %s", gitTestPipelineRunName, err)
 	}
 
@@ -116,7 +87,7 @@ func TestGitPipelineRunFail(t *testing.T) {
 			if tr.Status.PodName != "" {
 				p, err := c.KubeClient.Kube.CoreV1().Pods(namespace).Get(tr.Status.PodName, metav1.GetOptions{})
 				if err != nil {
-					t.Fatalf("Error getting pod `%s` in namespace `%s`", tr.Status.PodName, namespace)
+					t.Fatalf("Error getting pod %q in namespace `%s`", tr.Status.PodName, namespace)
 				}
 
 				for _, stat := range p.Status.ContainerStatuses {
@@ -144,35 +115,4 @@ func TestGitPipelineRunFail(t *testing.T) {
 	} else {
 		t.Fatalf("PipelineRun succeeded when should have failed")
 	}
-}
-
-func getGitPipelineResource(namespace, revision string) *v1alpha1.PipelineResource {
-	return tb.PipelineResource(gitSourceResourceName, namespace, tb.PipelineResourceSpec(
-		v1alpha1.PipelineResourceTypeGit,
-		tb.PipelineResourceSpecParam("Url", "https://github.com/tektoncd/pipeline"),
-		tb.PipelineResourceSpecParam("Revision", revision),
-	))
-}
-
-func getGitCheckTask(namespace string) *v1alpha1.Task {
-	return tb.Task(gitTestTaskName, namespace, tb.TaskSpec(
-		tb.TaskInputs(tb.InputsResource("gitsource", v1alpha1.PipelineResourceTypeGit)),
-		tb.Step("git", "alpine/git", tb.StepArgs("--git-dir=/workspace/gitsource/.git", "show")),
-	))
-}
-
-func getGitCheckPipeline(namespace string) *v1alpha1.Pipeline {
-	return tb.Pipeline(gitTestPipelineName, namespace, tb.PipelineSpec(
-		tb.PipelineDeclaredResource("git-repo", "git"),
-		tb.PipelineTask("git-check", gitTestTaskName,
-			tb.PipelineTaskInputResource("gitsource", "git-repo"),
-		),
-	))
-}
-
-func getGitCheckPipelineRun(namespace string) *v1alpha1.PipelineRun {
-	return tb.PipelineRun(gitTestPipelineRunName, namespace, tb.PipelineRunSpec(
-		gitTestPipelineName,
-		tb.PipelineRunResourceBinding("git-repo", tb.PipelineResourceBindingRef(gitSourceResourceName)),
-	))
 }

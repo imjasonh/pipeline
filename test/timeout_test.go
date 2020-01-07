@@ -44,23 +44,20 @@ func TestPipelineRunTimeout(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	t.Logf("Creating Task in namespace %s", namespace)
-	task := tb.Task("banana", namespace, tb.TaskSpec(
-		tb.Step("foo", "busybox", tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "sleep 10"))))
+	task := tb.Task(taskName, tb.TaskSpec(tb.Step("busybox", tb.StepScript("sleep 10"))))
 	if _, err := c.TaskClient.Create(task); err != nil {
-		t.Fatalf("Failed to create Task `%s`: %s", "banana", err)
+		t.Fatalf("Failed to create Task %q: %s", taskName, err)
 	}
 
-	pipeline := tb.Pipeline("tomatoes", namespace,
-		tb.PipelineSpec(tb.PipelineTask("foo", "banana")),
-	)
-	pipelineRun := tb.PipelineRun("pear", namespace, tb.PipelineRunSpec(pipeline.Name,
+	pipeline := tb.Pipeline(pipelineName, tb.PipelineSpec(tb.PipelineTask("foo", taskName)))
+	pipelineRun := tb.PipelineRun(pipelineRunName, tb.PipelineRunSpec(pipeline.Name,
 		tb.PipelineRunTimeout(5*time.Second),
 	))
 	if _, err := c.PipelineClient.Create(pipeline); err != nil {
-		t.Fatalf("Failed to create Pipeline `%s`: %s", pipeline.Name, err)
+		t.Fatalf("Failed to create Pipeline %q: %s", pipeline.Name, err)
 	}
 	if _, err := c.PipelineRunClient.Create(pipelineRun); err != nil {
-		t.Fatalf("Failed to create PipelineRun `%s`: %s", pipelineRun.Name, err)
+		t.Fatalf("Failed to create PipelineRun %q: %s", pipelineRun.Name, err)
 	}
 
 	t.Logf("Waiting for Pipelinerun %s in namespace %s to be started", pipelineRun.Name, namespace)
@@ -111,7 +108,7 @@ func TestPipelineRunTimeout(t *testing.T) {
 	}
 
 	if _, err := c.PipelineRunClient.Get(pipelineRun.Name, metav1.GetOptions{}); err != nil {
-		t.Fatalf("Failed to get PipelineRun `%s`: %s", pipelineRun.Name, err)
+		t.Fatalf("Failed to get PipelineRun %q: %s", pipelineRun.Name, err)
 	}
 
 	t.Logf("Waiting for PipelineRun %s in namespace %s to be timed out", pipelineRun.Name, namespace)
@@ -160,19 +157,19 @@ func TestPipelineRunTimeout(t *testing.T) {
 	wg.Wait()
 
 	if _, err := c.PipelineRunClient.Get(pipelineRun.Name, metav1.GetOptions{}); err != nil {
-		t.Fatalf("Failed to get PipelineRun `%s`: %s", pipelineRun.Name, err)
+		t.Fatalf("Failed to get PipelineRun %q: %s", pipelineRun.Name, err)
 	}
 
 	// Verify that we can create a second Pipeline using the same Task without a Pipeline-level timeout that will not
 	// time out
-	secondPipeline := tb.Pipeline("peppers", namespace,
-		tb.PipelineSpec(tb.PipelineTask("foo", "banana")))
-	secondPipelineRun := tb.PipelineRun("kiwi", namespace, tb.PipelineRunSpec("peppers"))
+	secondPipeline := tb.Pipeline("peppers",
+		tb.PipelineSpec(tb.PipelineTask("foo", taskName)))
+	secondPipelineRun := tb.PipelineRun("kiwi", tb.PipelineRunSpec("peppers"))
 	if _, err := c.PipelineClient.Create(secondPipeline); err != nil {
-		t.Fatalf("Failed to create Pipeline `%s`: %s", secondPipeline.Name, err)
+		t.Fatalf("Failed to create Pipeline %q: %s", secondPipeline.Name, err)
 	}
 	if _, err := c.PipelineRunClient.Create(secondPipelineRun); err != nil {
-		t.Fatalf("Failed to create PipelineRun `%s`: %s", secondPipelineRun.Name, err)
+		t.Fatalf("Failed to create PipelineRun %q: %s", secondPipelineRun.Name, err)
 	}
 
 	t.Logf("Waiting for PipelineRun %s in namespace %s to complete", secondPipelineRun.Name, namespace)
@@ -182,6 +179,8 @@ func TestPipelineRunTimeout(t *testing.T) {
 }
 
 func TestPipelineRunFailedAndRetry(t *testing.T) {
+	taskName := "task-name"
+
 	numberOfRetries := 2
 	c, namespace := setup(t)
 	t.Parallel()
@@ -190,22 +189,20 @@ func TestPipelineRunFailedAndRetry(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	t.Logf("Creating Task in namespace %s", namespace)
-	task := tb.Task("banana", namespace, tb.TaskSpec(
-		tb.Step("foo", "busybox", tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "exit 1")),
-	))
+	task := tb.Task(taskName, tb.TaskSpec(tb.Step("busybox", tb.StepScript("exit 1"))))
 	if _, err := c.TaskClient.Create(task); err != nil {
-		t.Fatalf("Failed to create Task `%s`: %s", "banana", err)
+		t.Fatalf("Failed to create Task %q: %s", taskName, err)
 	}
 
-	pipeline := tb.Pipeline("tomatoes", namespace,
-		tb.PipelineSpec(tb.PipelineTask("foo", "banana", tb.Retries(numberOfRetries))),
+	pipeline := tb.Pipeline("tomatoes",
+		tb.PipelineSpec(tb.PipelineTask("foo", taskName, tb.Retries(numberOfRetries))),
 	)
-	pipelineRun := tb.PipelineRun("pear", namespace, tb.PipelineRunSpec(pipeline.Name))
+	pipelineRun := tb.PipelineRun(pipelineRunName, tb.PipelineRunSpec(pipeline.Name))
 	if _, err := c.PipelineClient.Create(pipeline); err != nil {
-		t.Fatalf("Failed to create Pipeline `%s`: %s", pipeline.Name, err)
+		t.Fatalf("Failed to create Pipeline %q: %s", pipeline.Name, err)
 	}
 	if _, err := c.PipelineRunClient.Create(pipelineRun); err != nil {
-		t.Fatalf("Failed to create PipelineRun `%s`: %s", pipelineRun.Name, err)
+		t.Fatalf("Failed to create PipelineRun %q: %s", pipelineRun.Name, err)
 	}
 
 	t.Logf("Waiting for Pipelinerun %s in namespace %s to be started", pipelineRun.Name, namespace)
@@ -242,15 +239,14 @@ func TestTaskRunTimeout(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	t.Logf("Creating Task and TaskRun in namespace %s", namespace)
-	if _, err := c.TaskClient.Create(tb.Task("giraffe", namespace,
-		tb.TaskSpec(tb.Step("amazing-busybox", "busybox", tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "sleep 3000"))))); err != nil {
-		t.Fatalf("Failed to create Task `%s`: %s", "giraffe", err)
+	if _, err := c.TaskClient.Create(tb.Task(taskName, tb.TaskSpec(tb.Step("busybox", tb.StepScript("sleep 3000"))))); err != nil {
+		t.Fatalf("Failed to create Task %q: %s", "giraffe", err)
 	}
-	if _, err := c.TaskRunClient.Create(tb.TaskRun("run-giraffe", namespace, tb.TaskRunSpec(tb.TaskRunTaskRef("giraffe"),
+	if _, err := c.TaskRunClient.Create(tb.TaskRun("run-giraffe", tb.TaskRunSpec(tb.TaskRunTaskRef("giraffe"),
 		// Do not reduce this timeout. Taskrun e2e test is also verifying
 		// if reconcile is triggered from timeout handler and not by pod informers
 		tb.TaskRunTimeout(30*time.Second)))); err != nil {
-		t.Fatalf("Failed to create TaskRun `%s`: %s", "run-giraffe", err)
+		t.Fatalf("Failed to create TaskRun %q: %s", "run-giraffe", err)
 	}
 
 	t.Logf("Waiting for TaskRun %s in namespace %s to complete", "run-giraffe", namespace)

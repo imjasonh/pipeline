@@ -66,13 +66,13 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 	defer deleteBucketSecret(c, t, namespace)
 
 	t.Logf("Creating GCS bucket %s", bucketName)
-	createbuckettask := tb.Task("createbuckettask", namespace, tb.TaskSpec(
+	createbuckettask := tb.Task("createbuckettask", tb.TaskSpec(
 		tb.TaskVolume("bucket-secret-volume", tb.VolumeSource(corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: bucketSecretName,
 			},
 		})),
-		tb.Step("step1", "google/cloud-sdk:alpine",
+		tb.Step("google/cloud-sdk",
 			tb.StepCommand("/bin/bash"),
 			tb.StepArgs("-c", fmt.Sprintf("gcloud auth activate-service-account --key-file /var/secret/bucket-secret/bucket-secret-key && gsutil mb gs://%s", bucketName)),
 			tb.StepVolumeMount("bucket-secret-volume", fmt.Sprintf("/var/secret/%s", bucketSecretName)),
@@ -86,7 +86,7 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 		t.Fatalf("Failed to create Task `%s`: %s", "createbuckettask", err)
 	}
 
-	createbuckettaskrun := tb.TaskRun("createbuckettaskrun", namespace,
+	createbuckettaskrun := tb.TaskRun("createbuckettaskrun",
 		tb.TaskRunSpec(tb.TaskRunTaskRef("createbuckettask")))
 
 	t.Logf("Creating TaskRun %s", "createbuckettaskrun")
@@ -118,7 +118,7 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 	defer resetConfigMap(t, c, systemNamespace, artifacts.GetBucketConfigName(), originalConfigMapData)
 
 	t.Logf("Creating Git PipelineResource %s", helloworldResourceName)
-	helloworldResource := tb.PipelineResource(helloworldResourceName, namespace, tb.PipelineResourceSpec(
+	helloworldResource := tb.PipelineResource(helloworldResourceName, tb.PipelineResourceSpec(
 		v1alpha1.PipelineResourceTypeGit,
 		tb.PipelineResourceSpecParam("Url", "https://github.com/pivotal-nader-ziada/gohelloworld"),
 		tb.PipelineResourceSpecParam("Revision", "master"),
@@ -129,13 +129,14 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 	}
 
 	t.Logf("Creating Task %s", addFileTaskName)
-	addFileTask := tb.Task(addFileTaskName, namespace, tb.TaskSpec(
+	addFileTask := tb.Task(addFileTaskName, tb.TaskSpec(
 		tb.TaskInputs(tb.InputsResource(helloworldResourceName, v1alpha1.PipelineResourceTypeGit)),
 		tb.TaskOutputs(tb.OutputsResource(helloworldResourceName, v1alpha1.PipelineResourceTypeGit)),
-		tb.Step("addfile", "ubuntu", tb.StepCommand("/bin/bash"),
+		tb.Step("ubuntu", tb.StepCommand("/bin/bash"),
 			tb.StepArgs("-c", "'#!/bin/bash\necho hello' > /workspace/helloworldgit/newfile"),
 		),
-		tb.Step("make-executable", "ubuntu", tb.StepCommand("chmod"),
+		// Make executable.
+		tb.Step("ubuntu", tb.StepCommand("chmod"),
 			tb.StepArgs("+x", "/workspace/helloworldgit/newfile")),
 	))
 	if _, err := c.TaskClient.Create(addFileTask); err != nil {
@@ -143,16 +144,16 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 	}
 
 	t.Logf("Creating Task %s", runFileTaskName)
-	readFileTask := tb.Task(runFileTaskName, namespace, tb.TaskSpec(
+	readFileTask := tb.Task(runFileTaskName, tb.TaskSpec(
 		tb.TaskInputs(tb.InputsResource(helloworldResourceName, v1alpha1.PipelineResourceTypeGit)),
-		tb.Step("runfile", "ubuntu", tb.StepCommand("/workspace/helloworld/newfile")),
+		tb.Step("ubuntu", tb.StepCommand("/workspace/helloworld/newfile")),
 	))
 	if _, err := c.TaskClient.Create(readFileTask); err != nil {
 		t.Fatalf("Failed to create Task `%s`: %s", runFileTaskName, err)
 	}
 
 	t.Logf("Creating Pipeline %s", bucketTestPipelineName)
-	bucketTestPipeline := tb.Pipeline(bucketTestPipelineName, namespace, tb.PipelineSpec(
+	bucketTestPipeline := tb.Pipeline(bucketTestPipelineName, tb.PipelineSpec(
 		tb.PipelineDeclaredResource("source-repo", "git"),
 		tb.PipelineTask("addfile", addFileTaskName,
 			tb.PipelineTaskInputResource("helloworldgit", "source-repo"),
@@ -167,7 +168,7 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 	}
 
 	t.Logf("Creating PipelineRun %s", bucketTestPipelineRunName)
-	bucketTestPipelineRun := tb.PipelineRun(bucketTestPipelineRunName, namespace, tb.PipelineRunSpec(
+	bucketTestPipelineRun := tb.PipelineRun(bucketTestPipelineRunName, tb.PipelineRunSpec(
 		bucketTestPipelineName,
 		tb.PipelineRunResourceBinding("source-repo", tb.PipelineResourceBindingRef(helloworldResourceName)),
 	))
@@ -182,7 +183,7 @@ func TestStorageBucketPipelineRun(t *testing.T) {
 	}
 }
 
-// updateConfigMap updates the config map for specified @name with values. We can't use the one from knativetest because
+// updateConfigMap updates the config map for specified name with values. We can't use the one from knativetest because
 // it assumes that Data is already a non-nil map, and by default, it isn't!
 func updateConfigMap(client *knativetest.KubeClient, name string, configName string, values map[string]string) error {
 	configMap, err := client.GetConfigMap(name).Get(configName, metav1.GetOptions{})
@@ -232,13 +233,13 @@ func resetConfigMap(t *testing.T, c *clients, namespace, configName string, valu
 }
 
 func runTaskToDeleteBucket(c *clients, t *testing.T, namespace, bucketName, bucketSecretName, bucketSecretKey string) {
-	deletelbuckettask := tb.Task("deletelbuckettask", namespace, tb.TaskSpec(
+	deletelbuckettask := tb.Task("deletelbuckettask", tb.TaskSpec(
 		tb.TaskVolume("bucket-secret-volume", tb.VolumeSource(corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: bucketSecretName,
 			},
 		})),
-		tb.Step("step1", "google/cloud-sdk:alpine",
+		tb.Step("google/cloud-sdk:alpine",
 			tb.StepCommand("/bin/bash"),
 			tb.StepArgs("-c", fmt.Sprintf("gcloud auth activate-service-account --key-file /var/secret/bucket-secret/bucket-secret-key && gsutil rm -r gs://%s", bucketName)),
 			tb.StepVolumeMount("bucket-secret-volume", fmt.Sprintf("/var/secret/%s", bucketSecretName)),
@@ -252,7 +253,7 @@ func runTaskToDeleteBucket(c *clients, t *testing.T, namespace, bucketName, buck
 		t.Fatalf("Failed to create Task `%s`: %s", "deletelbuckettask", err)
 	}
 
-	deletelbuckettaskrun := tb.TaskRun("deletelbuckettaskrun", namespace,
+	deletelbuckettaskrun := tb.TaskRun("deletelbuckettaskrun",
 		tb.TaskRunSpec(tb.TaskRunTaskRef("deletelbuckettask")))
 
 	t.Logf("Creating TaskRun %s", "deletelbuckettaskrun")

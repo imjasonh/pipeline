@@ -43,11 +43,8 @@ func TestDuplicatePodTaskRun(t *testing.T) {
 		taskrunName := fmt.Sprintf("duplicate-pod-taskrun-%d", i)
 		t.Logf("Creating taskrun %q.", taskrunName)
 
-		taskrun := tb.TaskRun(taskrunName, namespace, tb.TaskRunSpec(
-			tb.TaskRunTaskSpec(tb.Step("echo", "busybox",
-				tb.StepCommand("/bin/echo"),
-				tb.StepArgs("simple"),
-			)),
+		taskrun := tb.TaskRun(taskrunName, tb.TaskRunSpec(
+			tb.TaskRunTaskSpec(tb.Step("busybox", tb.StepScript("echo simple"))),
 		))
 		if _, err := c.TaskRunClient.Create(taskrun); err != nil {
 			t.Fatalf("Error creating taskrun: %v", err)

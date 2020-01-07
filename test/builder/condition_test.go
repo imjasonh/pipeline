@@ -20,15 +20,14 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tb "github.com/tektoncd/pipeline/test/builder"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCondition(t *testing.T) {
-	condition := tb.Condition("cond-name", "foo",
+	condition := tb.Condition("cond-name",
 		tb.ConditionLabels(
 			map[string]string{
 				"label-1": "label-value-1",
@@ -45,8 +44,7 @@ func TestCondition(t *testing.T) {
 
 	expected := &v1alpha1.Condition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cond-name",
-			Namespace: "foo",
+			Name: "cond-name",
 			Labels: map[string]string{
 				"label-1": "label-value-1",
 				"label-2": "label-value-2",

@@ -35,10 +35,9 @@ type PodStatusOp func(status *corev1.PodStatus)
 
 // Pod creates a Pod with default values.
 // Any number of Pod modifiers can be passed to transform it.
-func Pod(name, namespace string, ops ...PodOp) *corev1.Pod {
+func Pod(name string, ops ...PodOp) *corev1.Pod {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   namespace,
 			Name:        name,
 			Annotations: map[string]string{},
 		},

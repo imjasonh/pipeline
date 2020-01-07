@@ -40,15 +40,15 @@ func TestWorkingDirCreated(t *testing.T) {
 	knativetest.CleanupOnInterrupt(func() { tearDown(t, c, namespace) }, t.Logf)
 	defer tearDown(t, c, namespace)
 
-	task := tb.Task(wdTaskName, namespace, tb.TaskSpec(
-		tb.Step("step1", "ubuntu", tb.StepWorkingDir("/workspace/HELLOMOTO"), tb.StepArgs("-c", "echo YES")),
+	task := tb.Task(wdTaskName, tb.TaskSpec(
+		tb.Step("ubuntu", tb.StepWorkingDir("/workspace/HELLOMOTO"), tb.StepScript("echo YES")),
 	))
 	if _, err := c.TaskClient.Create(task); err != nil {
 		t.Fatalf("Failed to create Task: %s", err)
 	}
 
 	t.Logf("Creating TaskRun  namespace %s", namespace)
-	taskRun := tb.TaskRun(wdTaskRunName, namespace, tb.TaskRunSpec(
+	taskRun := tb.TaskRun(wdTaskRunName, tb.TaskRunSpec(
 		tb.TaskRunTaskRef(wdTaskName), tb.TaskRunServiceAccountName("default"),
 	))
 	if _, err := c.TaskRunClient.Create(taskRun); err != nil {
@@ -94,15 +94,15 @@ func TestWorkingDirIgnoredNonSlashWorkspace(t *testing.T) {
 	knativetest.CleanupOnInterrupt(func() { tearDown(t, c, namespace) }, t.Logf)
 	defer tearDown(t, c, namespace)
 
-	task := tb.Task(wdTaskName, namespace, tb.TaskSpec(
-		tb.Step("step1", "ubuntu", tb.StepWorkingDir("/HELLOMOTO"), tb.StepArgs("-c", "echo YES")),
+	task := tb.Task(wdTaskName, tb.TaskSpec(
+		tb.Step("ubuntu", tb.StepWorkingDir("/HELLOMOTO"), tb.StepScript("echo YES")),
 	))
 	if _, err := c.TaskClient.Create(task); err != nil {
 		t.Fatalf("Failed to create Task: %s", err)
 	}
 
 	t.Logf("Creating TaskRun  namespace %s", namespace)
-	taskRun := tb.TaskRun(wdTaskRunName, namespace, tb.TaskRunSpec(
+	taskRun := tb.TaskRun(wdTaskRunName, tb.TaskRunSpec(
 		tb.TaskRunTaskRef(wdTaskName), tb.TaskRunServiceAccountName("default"),
 	))
 	if _, err := c.TaskRunClient.Create(taskRun); err != nil {

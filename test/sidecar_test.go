@@ -33,7 +33,6 @@ const (
 	sidecarTaskName      = "sidecar-test-task"
 	sidecarTaskRunName   = "sidecar-test-task-run"
 	sidecarContainerName = "sidecar-container"
-	primaryContainerName = "primary"
 )
 
 // TestSidecarTaskSupport checks whether support for sidecars is working
@@ -60,10 +59,9 @@ func TestSidecarTaskSupport(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			sidecarTaskName := fmt.Sprintf("%s-%d", sidecarTaskName, i)
 			sidecarTaskRunName := fmt.Sprintf("%s-%d", sidecarTaskRunName, i)
-			task := tb.Task(sidecarTaskName, namespace,
+			task := tb.Task(sidecarTaskName,
 				tb.TaskSpec(
 					tb.Step(
-						primaryContainerName,
 						"busybox:1.31.0-musl",
 						tb.StepCommand(test.stepCommand...),
 					),
@@ -75,7 +73,7 @@ func TestSidecarTaskSupport(t *testing.T) {
 				),
 			)
 
-			taskRun := tb.TaskRun(sidecarTaskRunName, namespace,
+			taskRun := tb.TaskRun(sidecarTaskRunName,
 				tb.TaskRunSpec(tb.TaskRunTaskRef(sidecarTaskName),
 					tb.TaskRunTimeout(1*time.Minute),
 				),
@@ -120,7 +118,7 @@ func TestSidecarTaskSupport(t *testing.T) {
 			sidecarTerminated := false
 
 			for _, c := range pod.Status.ContainerStatuses {
-				if c.Name == fmt.Sprintf("step-%s", primaryContainerName) {
+				if c.Name == "step-unnamed-0" { // Step container name.
 					if c.State.Terminated == nil || c.State.Terminated.Reason != "Completed" {
 						t.Errorf("Primary container has nil Terminated state or did not complete successfully. Actual Terminated state: %v", c.State.Terminated)
 					} else {

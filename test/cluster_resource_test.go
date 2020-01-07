@@ -42,96 +42,23 @@ func TestClusterResource(t *testing.T) {
 	defer tearDown(t, c, namespace)
 
 	t.Logf("Creating secret %s", secretName)
-	if _, err := c.KubeClient.Kube.CoreV1().Secrets(namespace).Create(getClusterResourceTaskSecret(namespace, secretName)); err != nil {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+		},
+		StringData: map[string]string{
+			"cadatakey": "ca-cert",
+			"tokenkey":  "token",
+		},
+	}
+	if _, err := c.KubeClient.Kube.CoreV1().Secrets(namespace).Create(secret); err != nil {
 		t.Fatalf("Failed to create Secret `%s`: %s", secretName, err)
 	}
 
 	t.Logf("Creating configMap %s", configName)
-	if _, err := c.KubeClient.Kube.CoreV1().ConfigMaps(namespace).Create(getClusterConfigMap(namespace, configName)); err != nil {
-		t.Fatalf("Failed to create configMap `%s`: %s", configName, err)
-	}
-
-	t.Logf("Creating cluster PipelineResource %s", resourceName)
-	if _, err := c.PipelineResourceClient.Create(getClusterResource(namespace, resourceName, secretName)); err != nil {
-		t.Fatalf("Failed to create cluster Pipeline Resource `%s`: %s", resourceName, err)
-	}
-
-	t.Logf("Creating Task %s", taskName)
-	if _, err := c.TaskClient.Create(getClusterResourceTask(namespace, taskName, configName)); err != nil {
-		t.Fatalf("Failed to create Task `%s`: %s", taskName, err)
-	}
-
-	t.Logf("Creating TaskRun %s", taskRunName)
-	if _, err := c.TaskRunClient.Create(getClusterResourceTaskRun(namespace, taskRunName, taskName, resourceName)); err != nil {
-		t.Fatalf("Failed to create Taskrun `%s`: %s", taskRunName, err)
-	}
-
-	// Verify status of TaskRun (wait for it)
-	if err := WaitForTaskRunState(c, taskRunName, TaskRunSucceed(taskRunName), "TaskRunCompleted"); err != nil {
-		t.Errorf("Error waiting for TaskRun %s to finish: %s", taskRunName, err)
-	}
-}
-
-func getClusterResource(namespace, name, sname string) *v1alpha1.PipelineResource {
-	return tb.PipelineResource(name, namespace, tb.PipelineResourceSpec(
-		v1alpha1.PipelineResourceTypeCluster,
-		tb.PipelineResourceSpecParam("Name", "helloworld-cluster"),
-		tb.PipelineResourceSpecParam("Url", "https://1.1.1.1"),
-		tb.PipelineResourceSpecParam("username", "test-user"),
-		tb.PipelineResourceSpecParam("password", "test-password"),
-		tb.PipelineResourceSpecSecretParam("cadata", sname, "cadatakey"),
-		tb.PipelineResourceSpecSecretParam("token", sname, "tokenkey"),
-	))
-}
-
-func getClusterResourceTaskSecret(namespace, name string) *corev1.Secret {
-	return &corev1.Secret{
+	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			"cadatakey": []byte("Y2EtY2VydAo="), //ca-cert
-			"tokenkey":  []byte("dG9rZW4K"),     //token
-		},
-	}
-}
-
-func getClusterResourceTask(namespace, name, configName string) *v1alpha1.Task {
-	return tb.Task(name, namespace, tb.TaskSpec(
-		tb.TaskInputs(tb.InputsResource("target-cluster", v1alpha1.PipelineResourceTypeCluster)),
-		tb.TaskVolume("config-vol", tb.VolumeSource(corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: configName,
-				},
-			},
-		})),
-		tb.Step("check-file-existence", "ubuntu",
-			tb.StepCommand("cat"), tb.StepArgs("/workspace/helloworld-cluster/kubeconfig"),
-		),
-		tb.Step("check-config-data", "ubuntu", tb.StepCommand("cat"), tb.StepArgs("/config/test.data"),
-			tb.StepVolumeMount("config-vol", "/config"),
-		),
-		tb.Step("check-contents", "ubuntu",
-			tb.StepCommand("bash"), tb.StepArgs("-c", "cmp -b /workspace/helloworld-cluster/kubeconfig /config/test.data"),
-			tb.StepVolumeMount("config-vol", "/config"),
-		),
-	))
-}
-
-func getClusterResourceTaskRun(namespace, name, taskName, resName string) *v1alpha1.TaskRun {
-	return tb.TaskRun(name, namespace, tb.TaskRunSpec(
-		tb.TaskRunTaskRef(taskName),
-		tb.TaskRunInputs(tb.TaskRunInputsResource("target-cluster", tb.TaskResourceBindingRef(resName))),
-	))
-}
-
-func getClusterConfigMap(namespace, name string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Name: configName,
 		},
 		Data: map[string]string{
 			"test.data": `apiVersion: v1
@@ -154,5 +81,56 @@ users:
     token: dG9rZW4K
 `,
 		},
+	}
+	if _, err := c.KubeClient.Kube.CoreV1().ConfigMaps(namespace).Create(configMap); err != nil {
+		t.Fatalf("Failed to create configMap `%s`: %s", configName, err)
+	}
+
+	t.Logf("Creating cluster PipelineResource %q", resourceName)
+	clusterResource := tb.PipelineResource(resourceName, tb.PipelineResourceSpec(
+		v1alpha1.PipelineResourceTypeCluster,
+		tb.PipelineResourceSpecParam("Name", "helloworld-cluster"),
+		tb.PipelineResourceSpecParam("Url", "https://1.1.1.1"),
+		tb.PipelineResourceSpecParam("username", "test-user"),
+		tb.PipelineResourceSpecParam("password", "test-password"),
+		tb.PipelineResourceSpecSecretParam("cadata", secretName, "cadatakey"),
+		tb.PipelineResourceSpecSecretParam("token", secretName, "tokenkey"),
+	))
+	if _, err := c.PipelineResourceClient.Create(clusterResource); err != nil {
+		t.Fatalf("Failed to create cluster Pipeline Resource `%s`: %s", resourceName, err)
+	}
+
+	t.Logf("Creating Task %s", taskName)
+	task := tb.Task(taskName, tb.TaskSpec(
+		tb.TaskInputs(tb.InputsResource("target-cluster", v1alpha1.PipelineResourceTypeCluster)),
+		tb.TaskVolume("config-vol", tb.VolumeSource(corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configName,
+				},
+			},
+		})),
+		// Check files exist and are equal.
+		tb.Step("ubuntu",
+			tb.StepScript("cmp -b /workspace/helloworld-cluster/kubeconfig /config/test.data"),
+			tb.StepVolumeMount("config-vol", "/config"),
+		),
+	))
+	if _, err := c.TaskClient.Create(task); err != nil {
+		t.Fatalf("Failed to create Task `%s`: %s", taskName, err)
+	}
+
+	t.Logf("Creating TaskRun %s", taskRunName)
+	taskRun := tb.TaskRun(taskRunName, tb.TaskRunSpec(
+		tb.TaskRunTaskRef(taskName),
+		tb.TaskRunInputs(tb.TaskRunInputsResource("target-cluster", tb.TaskResourceBindingRef(resourceName))),
+	))
+	if _, err := c.TaskRunClient.Create(taskRun); err != nil {
+		t.Fatalf("Failed to create Taskrun `%s`: %s", taskRunName, err)
+	}
+
+	// Verify status of TaskRun (wait for it)
+	if err := WaitForTaskRunState(c, taskRunName, TaskRunSucceed(taskRunName), "TaskRunCompleted"); err != nil {
+		t.Errorf("Error waiting for TaskRun %s to finish: %s", taskRunName, err)
 	}
 }

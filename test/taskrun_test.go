@@ -41,21 +41,15 @@ func TestTaskRunFailure(t *testing.T) {
 	taskRunName := "failing-taskrun"
 
 	t.Logf("Creating Task and TaskRun in namespace %s", namespace)
-	task := tb.Task("failing-task", namespace, tb.TaskSpec(
-		tb.Step("hello", "busybox",
-			tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "echo hello"),
-		),
-		tb.Step("exit", "busybox",
-			tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "exit 1"),
-		),
-		tb.Step("world", "busybox",
-			tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "sleep 30s"),
-		),
+	task := tb.Task("failing-task", tb.TaskSpec(
+		tb.Step("busybox", tb.StepScript("echo hello")),
+		tb.Step("busybox", tb.StepScript("exit 1")),
+		tb.Step("busybox", tb.StepScript("sleep 30")),
 	))
 	if _, err := c.TaskClient.Create(task); err != nil {
 		t.Fatalf("Failed to create Task: %s", err)
 	}
-	taskRun := tb.TaskRun(taskRunName, namespace, tb.TaskRunSpec(
+	taskRun := tb.TaskRun(taskRunName, tb.TaskRunSpec(
 		tb.TaskRunTaskRef("failing-task"),
 	))
 	if _, err := c.TaskRunClient.Create(taskRun); err != nil {
@@ -118,16 +112,14 @@ func TestTaskRunStatus(t *testing.T) {
 
 	fqImageName := "busybox@sha256:895ab622e92e18d6b461d671081757af7dbaa3b00e3e28e12505af7817f73649"
 	t.Logf("Creating Task and TaskRun in namespace %s", namespace)
-	task := tb.Task("status-task", namespace, tb.TaskSpec(
+	task := tb.Task("status-task", tb.TaskSpec(
 		// This was the digest of the latest tag as of 8/12/2019
-		tb.Step("hello", "busybox@sha256:895ab622e92e18d6b461d671081757af7dbaa3b00e3e28e12505af7817f73649",
-			tb.StepCommand("/bin/sh"), tb.StepArgs("-c", "echo hello"),
-		),
+		tb.Step(fqImageName, tb.StepScript("echo hello")),
 	))
 	if _, err := c.TaskClient.Create(task); err != nil {
 		t.Fatalf("Failed to create Task: %s", err)
 	}
-	taskRun := tb.TaskRun(taskRunName, namespace, tb.TaskRunSpec(
+	taskRun := tb.TaskRun(taskRunName, tb.TaskRunSpec(
 		tb.TaskRunTaskRef("status-task"),
 	))
 	if _, err := c.TaskRunClient.Create(taskRun); err != nil {

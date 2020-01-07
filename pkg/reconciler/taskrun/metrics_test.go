@@ -59,7 +59,7 @@ func TestRecordTaskrunDurationCount(t *testing.T) {
 		expectedCount    int64
 	}{{
 		desc: "for_succeeded_task",
-		taskRun: tb.TaskRun("taskrun-1", "ns",
+		taskRun: tb.TaskRun("taskrun-1",
 			tb.TaskRunSpec(
 				tb.TaskRunTaskRef("task-1"),
 			),
@@ -74,14 +74,14 @@ func TestRecordTaskrunDurationCount(t *testing.T) {
 		expectedTags: map[string]string{
 			"task":      "task-1",
 			"taskrun":   "taskrun-1",
-			"namespace": "ns",
+			"namespace": "default",
 			"status":    "success",
 		},
 		expectedDuration: 60,
 		expectedCount:    1,
 	}, {
 		desc: "for_failed_task",
-		taskRun: tb.TaskRun("taskrun-1", "ns",
+		taskRun: tb.TaskRun("taskrun-1",
 			tb.TaskRunSpec(
 				tb.TaskRunTaskRef("task-1"),
 			),
@@ -96,7 +96,7 @@ func TestRecordTaskrunDurationCount(t *testing.T) {
 		expectedTags: map[string]string{
 			"task":      "task-1",
 			"taskrun":   "taskrun-1",
-			"namespace": "ns",
+			"namespace": "default",
 			"status":    "failed",
 		},
 		expectedDuration: 60,
@@ -130,7 +130,7 @@ func TestRecordPipelinerunTaskrunDurationCount(t *testing.T) {
 		expectedCount    int64
 	}{{
 		desc: "for_succeeded_task",
-		taskRun: tb.TaskRun("taskrun-1", "ns",
+		taskRun: tb.TaskRun("taskrun-1",
 			tb.TaskRunLabel(pipeline.GroupName+pipeline.PipelineLabelKey, "pipeline-1"),
 			tb.TaskRunLabel(pipeline.GroupName+pipeline.PipelineRunLabelKey, "pipelinerun-1"),
 			tb.TaskRunSpec(
@@ -149,14 +149,14 @@ func TestRecordPipelinerunTaskrunDurationCount(t *testing.T) {
 			"pipelinerun": "pipelinerun-1",
 			"task":        "task-1",
 			"taskrun":     "taskrun-1",
-			"namespace":   "ns",
+			"namespace":   "default",
 			"status":      "success",
 		},
 		expectedDuration: 60,
 		expectedCount:    1,
 	}, {
 		desc: "for_failed_task",
-		taskRun: tb.TaskRun("taskrun-1", "ns",
+		taskRun: tb.TaskRun("taskrun-1",
 			tb.TaskRunLabel(pipeline.GroupName+pipeline.PipelineLabelKey, "pipeline-1"),
 			tb.TaskRunLabel(pipeline.GroupName+pipeline.PipelineRunLabelKey, "pipelinerun-1"),
 			tb.TaskRunSpec(
@@ -175,7 +175,7 @@ func TestRecordPipelinerunTaskrunDurationCount(t *testing.T) {
 			"pipelinerun": "pipelinerun-1",
 			"task":        "task-1",
 			"taskrun":     "taskrun-1",
-			"namespace":   "ns",
+			"namespace":   "default",
 			"status":      "failed",
 		},
 		expectedDuration: 60,
@@ -203,9 +203,9 @@ func TestRecordRunningTaskrunsCount(t *testing.T) {
 
 	ctx, _ := rtesting.SetupFakeContext(t)
 	informer := faketaskruninformer.Get(ctx)
-	addTaskruns(informer, "taskrun-1", "task-1", "ns", corev1.ConditionTrue, t)
-	addTaskruns(informer, "taskrun-2", "task-3", "ns", corev1.ConditionUnknown, t)
-	addTaskruns(informer, "taskrun-3", "task-3", "ns", corev1.ConditionFalse, t)
+	addTaskruns(informer, "taskrun-1", "task-1", corev1.ConditionTrue, t)
+	addTaskruns(informer, "taskrun-2", "task-3", corev1.ConditionUnknown, t)
+	addTaskruns(informer, "taskrun-3", "task-3", corev1.ConditionFalse, t)
 
 	metrics, err := NewRecorder()
 	if err != nil {
@@ -229,7 +229,7 @@ func TestRecordPodLatency(t *testing.T) {
 		expectingError bool
 	}{{
 		desc: "for_scheduled_pod",
-		pod: tb.Pod("test-taskrun-pod-123456", "foo",
+		pod: tb.Pod("test-taskrun-pod-123456",
 			tb.PodCreationTimestamp(creationTime),
 			tb.PodStatus(
 				tb.PodStatusConditions(corev1.PodCondition{
@@ -237,7 +237,7 @@ func TestRecordPodLatency(t *testing.T) {
 					LastTransitionTime: metav1.Time{Time: creationTime.Add(4 * time.Second)},
 				}),
 			)),
-		taskRun: tb.TaskRun("test-taskrun", "foo",
+		taskRun: tb.TaskRun("test-taskrun",
 			tb.TaskRunSpec(
 				tb.TaskRunTaskRef("task-1"),
 			),
@@ -246,15 +246,15 @@ func TestRecordPodLatency(t *testing.T) {
 			"pod":       "test-taskrun-pod-123456",
 			"task":      "task-1",
 			"taskrun":   "test-taskrun",
-			"namespace": "foo",
+			"namespace": "default",
 		},
 		expectedValue: 4e+09,
 	}, {
 		desc: "for_non_scheduled_pod",
-		pod: tb.Pod("test-taskrun-pod-123456", "foo",
+		pod: tb.Pod("test-taskrun-pod-123456",
 			tb.PodCreationTimestamp(creationTime),
 		),
-		taskRun: tb.TaskRun("test-taskrun", "foo",
+		taskRun: tb.TaskRun("test-taskrun",
 			tb.TaskRunSpec(
 				tb.TaskRunTaskRef("task-1"),
 			),
