@@ -1,0 +1,3 @@
+NAME            SUCCEEDED                                          REASON                                            STARTED           COMPLETED              BUILD_ID                          GCB_STATUS
+.metadata.name  .status.conditions[?(@.type=="Succeeded")].status  .status.conditions[?(@.type=="Succeeded")].reason .status.startTime .status.completionTime .status.additionalFields.buildId  .status.additionalFields.build.status
+

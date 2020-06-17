@@ -1,0 +1,8 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Run
+metadata:
+  generateName: gcb-run-
+spec:
+  ref:
+    apiVersion: cloudbuild.googleapis.com/v1alpha1
+    kind: Build

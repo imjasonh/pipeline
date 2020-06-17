@@ -1,0 +1,243 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudbuild-task
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudbuild-task-controller
+  namespace: cloudbuild-task
+  labels:
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cloudbuild-task-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+rules:
+    # Controller needs cluster access to all Run CRs.
+  - apiGroups: ["tekton.dev"]
+    resources: ["runs"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["runs/finalizers"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["runs/status"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+
+    # Controller needs permission to emit events associated with Run CRs.
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+
+---
+
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cloudbuild-task-controller
+  namespace: cloudbuild-task
+  labels:
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["list", "watch"]
+  # The controller needs access to these configmaps for logging information and runtime configuration.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+    resourceNames: ["config-logging", "config-observability", "config-leader-election"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["sa-key"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: cloudbuild-task-controller
+  namespace: cloudbuild-task
+  labels:
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+subjects:
+  - kind: ServiceAccount
+    name: cloudbuild-task-controller
+    namespace: cloudbuild-task
+roleRef:
+  kind: Role
+  name: cloudbuild-task-controller
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: cloudbuild-task-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+subjects:
+  - kind: ServiceAccount
+    name: cloudbuild-task-controller
+    namespace: cloudbuild-task
+roleRef:
+  kind: ClusterRole
+  name: cloudbuild-task-controller-cluster-access
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-logging
+  namespace: cloudbuild-task
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task
+data:
+  # Common configuration for all knative codebase
+  zap-logger-config: |
+    {
+      "level": "info",
+      "development": false,
+      "sampling": {
+        "initial": 100,
+        "thereafter": 100
+      },
+      "outputPaths": ["stdout"],
+      "errorOutputPaths": ["stderr"],
+      "encoding": "json",
+      "encoderConfig": {
+        "timeKey": "",
+        "levelKey": "level",
+        "nameKey": "logger",
+        "callerKey": "caller",
+        "messageKey": "msg",
+        "stacktraceKey": "stacktrace",
+        "lineEnding": "",
+        "levelEncoder": "",
+        "timeEncoder": "",
+        "durationEncoder": "",
+        "callerEncoder": ""
+      }
+    }
+
+  # Log level overrides
+  loglevel.controller: "info"
+  loglevel.webhook: "info"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudbuild-task-controller
+  namespace: cloudbuild-task
+  labels:
+    app.kubernetes.io/name: cloudbuild-task-controller
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/version: devel
+    app.kubernetes.io/part-of: cloudbuild-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudbuild-task-controller
+      app.kubernetes.io/component: cloudbuild-task-controller
+      app.kubernetes.io/instance: default
+      app.kubernetes.io/part-of: cloudbuild-task
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+      labels:
+        app.kubernetes.io/name: cloudbuild-task-controller
+        app.kubernetes.io/component: cloudbuild-task-controller
+        app.kubernetes.io/instance: default
+        app.kubernetes.io/version: devel
+        app.kubernetes.io/part-of: cloudbuild-task
+        app: cloudbuild-task-controller
+    spec:
+      serviceAccountName: cloudbuild-task-controller
+      containers:
+      - name: cloudbuild-task-controller
+        image: ko://github.com/tektoncd/pipeline/cmd/cloudbuild
+        volumeMounts:
+        - name: config-logging
+          mountPath: /etc/config-logging
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+        env:
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        # If you are changing these names, you will also need to update
+        # the controller's Role in 200-role.yaml to include the new
+        # values in the "configmaps" "get" rule.
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+      volumes:
+        - name: config-logging
+          configMap:
+            name: config-logging
+        - name: google-cloud-key
+          secret:
+            secretName: sa-key
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: cloudbuild-task-controller
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/version: devel
+    app.kubernetes.io/part-of: cloudbuild-task
+    # tekton.dev/release value replaced with inputs.params.versionTag in pipeline/tekton/publish.yaml
+    pipeline.tekton.dev/release: "devel"
+    # labels below are related to istio and should not be used for resource lookup
+    app: cloudbuild-task-controller
+    version: "devel"
+  name: cloudbuild-task-controller
+  namespace: cloudbuild-task
+spec:
+  ports:
+  - name: http-metrics
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app.kubernetes.io/name: cloudbuild-task-controller
+    app.kubernetes.io/component: cloudbuild-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cloudbuild-task

@@ -1,0 +1,9 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Run
+metadata:
+  generateName: run-
+spec:
+  ref:
+    apiVersion: custom.dev/v1alpha1
+    kind: Test
+    name: anything

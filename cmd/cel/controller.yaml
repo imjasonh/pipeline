@@ -1,0 +1,232 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cel-task
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cel-task-controller
+  namespace: cel-task
+  labels:
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cel-task-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+rules:
+    # Controller needs cluster access to all Run CRs.
+  - apiGroups: ["tekton.dev"]
+    resources: ["runs"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["runs/finalizers"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["runs/status"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+
+    # Controller needs permission to emit events associated with Run CRs.
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+
+---
+
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cel-task-controller
+  namespace: cel-task
+  labels:
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["list", "watch"]
+  # The controller needs access to these configmaps for logging information and runtime configuration.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+    resourceNames: ["config-logging", "config-observability", "config-leader-election"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: cel-task-controller
+  namespace: cel-task
+  labels:
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+subjects:
+  - kind: ServiceAccount
+    name: cel-task-controller
+    namespace: cel-task
+roleRef:
+  kind: Role
+  name: cel-task-controller
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: cel-task-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+subjects:
+  - kind: ServiceAccount
+    name: cel-task-controller
+    namespace: cel-task
+roleRef:
+  kind: ClusterRole
+  name: cel-task-controller-cluster-access
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-logging
+  namespace: cel-task
+  labels:
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
+data:
+  # Common configuration for all knative codebase
+  zap-logger-config: |
+    {
+      "level": "info",
+      "development": false,
+      "sampling": {
+        "initial": 100,
+        "thereafter": 100
+      },
+      "outputPaths": ["stdout"],
+      "errorOutputPaths": ["stderr"],
+      "encoding": "json",
+      "encoderConfig": {
+        "timeKey": "",
+        "levelKey": "level",
+        "nameKey": "logger",
+        "callerKey": "caller",
+        "messageKey": "msg",
+        "stacktraceKey": "stacktrace",
+        "lineEnding": "",
+        "levelEncoder": "",
+        "timeEncoder": "",
+        "durationEncoder": "",
+        "callerEncoder": ""
+      }
+    }
+
+  # Log level overrides
+  loglevel.controller: "info"
+  loglevel.webhook: "info"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cel-task-controller
+  namespace: cel-task
+  labels:
+    app.kubernetes.io/name: cel-task-controller
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/version: devel
+    app.kubernetes.io/part-of: cel-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cel-task-controller
+      app.kubernetes.io/component: cel-task-controller
+      app.kubernetes.io/instance: default
+      app.kubernetes.io/part-of: cel-task
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+      labels:
+        app.kubernetes.io/name: cel-task-controller
+        app.kubernetes.io/component: cel-task-controller
+        app.kubernetes.io/instance: default
+        app.kubernetes.io/version: devel
+        app.kubernetes.io/part-of: cel-task
+        app: cel-task-controller
+    spec:
+      serviceAccountName: cel-task-controller
+      containers:
+      - name: cel-task-controller
+        image: ko://github.com/tektoncd/pipeline/cmd/cel
+        volumeMounts:
+        - name: config-logging
+          mountPath: /etc/config-logging
+        env:
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # If you are changing these names, you will also need to update
+        # the controller's Role in 200-role.yaml to include the new
+        # values in the "configmaps" "get" rule.
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+      volumes:
+        - name: config-logging
+          configMap:
+            name: config-logging
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: cel-task-controller
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/version: devel
+    app.kubernetes.io/part-of: cel-task
+    # tekton.dev/release value replaced with inputs.params.versionTag in pipeline/tekton/publish.yaml
+    pipeline.tekton.dev/release: "devel"
+    # labels below are related to istio and should not be used for resource lookup
+    app: cel-task-controller
+    version: "devel"
+  name: cel-task-controller
+  namespace: cel-task
+spec:
+  ports:
+  - name: http-metrics
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app.kubernetes.io/name: cel-task-controller
+    app.kubernetes.io/component: cel-task-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: cel-task
