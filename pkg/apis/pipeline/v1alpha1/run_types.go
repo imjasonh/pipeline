@@ -44,8 +44,15 @@ type RunSpec struct {
 	// +optional
 	Params []v1beta1.Param `json:"params,omitempty"`
 
+	// Status is the desired state of the Run.
+	//
+	// Currently this is only used to signal
+	// cancellation of a Run, by updating its value to
+	// "Cancelled".
+	// +optional
+	Status string `json:"status,omitempty"`
+
 	// TODO(https://github.com/tektoncd/community/pull/128)
-	// - cancellation
 	// - timeout
 	// - inline task spec
 	// - workspaces ?

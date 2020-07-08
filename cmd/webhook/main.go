@@ -17,7 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"log"
 	"os"
 
 	defaultconfig "github.com/tektoncd/pipeline/pkg/apis/config"
@@ -26,6 +29,8 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/contexts"
 	"github.com/tektoncd/pipeline/pkg/system"
+	admissionv1 "k8s.io/api/admission/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
@@ -219,5 +224,64 @@ func main() {
 		newValidationAdmissionController,
 		newConfigValidationController,
 		newConversionController,
+		newStateValidator,
 	)
+}
+
+func newStateValidator(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+	// Decorate contexts with the current state of the config.
+	store := defaultconfig.NewStore(logging.FromContext(ctx).Named("config-store"))
+	store.WatchConfigs(cmw)
+
+	logger := logging.FromContext(ctx)
+
+	sv := stateValidator{}
+	return controller.NewImpl(sv, logger, "work-queue-name")
+}
+
+type stateValidator struct {
+	webhook.StatelessAdmissionController
+}
+
+func (stateValidator) Path() string { return "/run-state-validator" }
+
+func (stateValidator) Reconcile(ctx context.Context, key string) error { return nil }
+
+var (
+	runGVK = metav1.GroupVersionKind{
+		Group:   "tekton.dev",
+		Version: "v1alpha1",
+		Kind:    "Run",
+	}
+	allowed = &admissionv1.AdmissionResponse{Allowed: true}
+)
+
+func (stateValidator) Admit(ctx context.Context, req *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
+	// Ignore non-Run objects.
+	if req.Kind != runGVK {
+		return allowed
+	}
+
+	// Ignore creations and deletions.
+	if req.Operation == admissionv1.Create ||
+		req.Operation == admissionv1.Delete {
+		return allowed
+	}
+
+	// Decode old and new objects.
+	var oldObj, newObj v1alpha1.Run
+	if err := json.NewDecoder(bytes.NewReader(req.Object.Raw)).Decode(&newObj); err != nil {
+		return webhook.MakeErrorStatus("validation failed: cannot decode incoming new object: %v", err)
+	}
+	if err := json.NewDecoder(bytes.NewReader(req.OldObject.Raw)).Decode(&oldObj); err != nil {
+		return webhook.MakeErrorStatus("validation failed: cannot decode incoming old object: %v", err)
+	}
+
+	log.Println("====== VALIDATING =====")
+	if err := v1alpha1.ValidateRunTransition(oldObj, newObj); err != nil {
+		log.Println("--> invalid!")
+		return webhook.MakeErrorStatus("validation failed: %v", err)
+	}
+	log.Println("--> valid!")
+	return allowed
 }
