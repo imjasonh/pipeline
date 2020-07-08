@@ -21,6 +21,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	json "encoding/json"
+
 	pod "github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	resourcev1alpha1 "github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
@@ -731,6 +733,11 @@ func (in *RunStatusFields) DeepCopyInto(out *RunStatusFields) {
 	if in.Results != nil {
 		in, out := &in.Results, &out.Results
 		*out = make([]v1beta1.TaskRunResult, len(*in))
+		copy(*out, *in)
+	}
+	if in.AdditionalFields != nil {
+		in, out := &in.AdditionalFields, &out.AdditionalFields
+		*out = make(json.RawMessage, len(*in))
 		copy(*out, *in)
 	}
 	return

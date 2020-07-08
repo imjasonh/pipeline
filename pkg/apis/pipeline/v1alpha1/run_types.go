@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -126,8 +127,59 @@ type RunStatusFields struct {
 	// +optional
 	Results []v1beta1.TaskRunResult `json:"results,omitempty"`
 
-	// TODO(jasonhall): Add a field to hold additional arbitrary fields as
-	// a map[string]interface{}.
+	// AdditionalFields holds any additional information reported by the
+	// Custom Task controller.
+	AdditionalFields json.RawMessage `json:"additionalFields,omitempty"`
+}
+
+func (rs *RunStatus) unmarshalAdditionalFields() (map[string]interface{}, error) {
+	m := map[string]interface{}{}
+	if rs.AdditionalFields != nil {
+		if err := json.Unmarshal(rs.AdditionalFields, &m); err != nil {
+			return nil, fmt.Errorf("Unmarshalling additionalFields: %w", err)
+		}
+	}
+	return m, nil
+}
+
+func (rs *RunStatus) marshalAdditionalFields(m map[string]interface{}) error {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("Marshalling additionalFields: %w", err)
+	}
+	rs.AdditionalFields = json.RawMessage(b)
+	return nil
+}
+
+// SetAdditionalField sets an additional field on the status.
+func (rs *RunStatus) SetAdditionalField(k string, v interface{}) error {
+	m, err := rs.unmarshalAdditionalFields()
+	if err != nil {
+		return err
+	}
+	m[k] = v
+	return rs.marshalAdditionalFields(m)
+}
+
+// GetAdditionalField gets the value of an additional field, or nil if it is
+// not defined.
+func (rs *RunStatus) GetAdditionalField(k string) (interface{}, error) {
+	m, err := rs.unmarshalAdditionalFields()
+	if err != nil {
+		return nil, err
+	}
+	return m[k], nil
+}
+
+// ClearAdditionalField unsets the additional field with the given key, if it
+// is defined.
+func (rs *RunStatus) ClearAdditionalField(k string) error {
+	m, err := rs.unmarshalAdditionalFields()
+	if err != nil {
+		return err
+	}
+	delete(m, k)
+	return rs.marshalAdditionalFields(m)
 }
 
 // +genclient

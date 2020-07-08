@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1_test
 
 import (
+	json "encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -93,5 +94,119 @@ func TestGetParams(t *testing.T) {
 				t.Fatalf("Diff(-want,+got): %v", d)
 			}
 		})
+	}
+}
+
+func TestAdditionalFields(t *testing.T) {
+	r := &v1alpha1.Run{}
+
+	// Empty additionalFields -> nil result, no error.
+	got, err := r.Status.GetAdditionalField("not-found")
+	if err != nil {
+		t.Fatalf("GetAdditionalField('not-found'): %v", err)
+	}
+	if got != nil {
+		t.Fatalf("GetAdditionalField('not-found') got %v, want nil", got)
+	}
+
+	// Set a numerical field value.
+	if err := r.Status.SetAdditionalField("foo", 123); err != nil {
+		t.Fatalf("SetAdditionalField('foo'): %v", err)
+	}
+	// Get the field value.
+	got, err = r.Status.GetAdditionalField("foo")
+	if err != nil {
+		t.Fatalf("GetAdditionalField('foo'): %v", err)
+	}
+	if got == nil {
+		t.Fatal("GetAdditionalField('foo') was nil")
+	}
+	// Value is float64 even though it was provided as int...
+	if gotv, ok := got.(float64); !ok {
+		t.Fatalf("GetAdditionalField('foo') was not float64: %T", got)
+	} else if gotv != 123 {
+		t.Fatalf("GetAdditionalField('foo') got %v, want 123", gotv)
+	}
+
+	// Set struct field value.
+	type pair struct{ A, B string }
+	v := pair{"a", "b"}
+	if err := r.Status.SetAdditionalField("bar", v); err != nil {
+		t.Fatalf("SetAdditionalField('bar'): %v", err)
+	}
+	// Get the field value.
+	got, err = r.Status.GetAdditionalField("bar")
+	if err != nil {
+		t.Fatalf("GetAdditionalField('bar'): %v", err)
+	}
+	if got == nil {
+		t.Fatal("GetAdditionalField('bar') was nil")
+	}
+	// Value is map[string]interface{} even though it was provided as struct...
+	if gotv, ok := got.(map[string]interface{}); !ok {
+		t.Fatalf("GetAdditionalField('bar') was not map[string]interface{}: %T", got)
+	} else {
+		want := map[string]interface{}{"A": "a", "B": "b"}
+		if d := cmp.Diff(want, gotv); d != "" {
+			t.Fatalf("GetAdditionalField('bar'): Diff(-want,+got): %s", d)
+		}
+	}
+
+	// Check the exact JSON bytes stored.
+	want := `{"bar":{"A":"a","B":"b"},"foo":123}`
+	if d := cmp.Diff(want, string(r.Status.AdditionalFields)); d != "" {
+		t.Fatalf("AdditionalFields: Diff(-want,+got): %s", d)
+	}
+
+	// Clear an unknown field, no error.
+	if err := r.Status.ClearAdditionalField("not-found"); err != nil {
+		t.Fatalf("ClearAdditionalField('not-found'): %v", err)
+	}
+
+	// Clear a set field.
+	if err := r.Status.ClearAdditionalField("foo"); err != nil {
+		t.Fatalf("ClearAdditionalField('foo'): %v", err)
+	}
+	got, err = r.Status.GetAdditionalField("foo")
+	if err != nil {
+		t.Fatalf("GetAdditionalField('foo'): %v", err)
+	}
+	if got != nil {
+		t.Fatalf("GetAdditionalField('foo') got %v, want nil", got)
+	}
+}
+
+func TestAdditionalFields_DirectAccess(t *testing.T) {
+	r := &v1alpha1.Run{
+		Status: v1alpha1.RunStatus{
+			RunStatusFields: v1alpha1.RunStatusFields{
+				AdditionalFields: json.RawMessage(`{"foo":"bar"}`),
+			},
+		},
+	}
+	got, err := r.Status.GetAdditionalField("foo")
+	if err != nil {
+		t.Fatalf("GetAdditionalField('foo'): %v", err)
+	}
+	if gotv, ok := got.(string); !ok {
+		t.Fatalf("GetAdditionalField('foo') was not string: %T", got)
+	} else if gotv != "bar" {
+		t.Fatalf("GetAdditionalField('foo') got %q, want %q", gotv, "bar")
+	}
+
+	// Directly set bytes to invalid JSON -> error getting value.
+	r.Status.AdditionalFields = json.RawMessage(`{[[[}`)
+	if _, err := r.Status.GetAdditionalField("foo"); err == nil {
+		t.Fatal("GetAdditionalField wanted error, got nil")
+	} else {
+		t.Logf("Invalid JSON error: %v", err)
+	}
+
+	// Directly set bytes to valid JSON that isn't a map[string]interface{} -> error getting value.
+	r.Status.AdditionalFields = json.RawMessage(`["a","b","c"]`)
+	if _, err := r.Status.GetAdditionalField("foo"); err == nil {
+		t.Fatal("GetAdditionalField wanted error, got nil")
+	} else {
+		t.Logf("Valid non-map JSON error: %v", err)
 	}
 }
