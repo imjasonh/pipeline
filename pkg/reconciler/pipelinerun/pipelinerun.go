@@ -110,6 +110,7 @@ type Reconciler struct {
 	pipelineRunLister listers.PipelineRunLister
 	pipelineLister    listers.PipelineLister
 	taskRunLister     listers.TaskRunLister
+	runLister         listersv1alpha1.RunLister
 	taskLister        listers.TaskLister
 	clusterTaskLister listers.ClusterTaskLister
 	resourceLister    resourcelisters.PipelineResourceLister
@@ -398,6 +399,9 @@ func (c *Reconciler) reconcile(ctx context.Context, pr *v1beta1.PipelineRun) err
 		func(name string) (*v1beta1.TaskRun, error) {
 			return c.taskRunLister.TaskRuns(pr.Namespace).Get(name)
 		},
+		func(name string) (*v1alpha1.Run, error) {
+			return c.runLister.Runs(pr.Namespace).Get(name)
+		},
 		func(name string) (v1beta1.TaskInterface, error) {
 			return c.clusterTaskLister.Get(name)
 		},
@@ -489,7 +493,6 @@ func (c *Reconciler) reconcile(ctx context.Context, pr *v1beta1.PipelineRun) err
 // pipeline run state, and starts them
 // after all DAG tasks are done, it's responsible for scheduling final tasks and start executing them
 func (c *Reconciler) runNextSchedulableTask(ctx context.Context, pr *v1beta1.PipelineRun, d *dag.Graph, dfinally *dag.Graph, pipelineState resources.PipelineRunState, as artifacts.ArtifactStorageInterface) error {
-
 	logger := logging.FromContext(ctx)
 	recorder := controller.GetEventRecorder(ctx)
 
@@ -628,6 +631,25 @@ func (c *Reconciler) updateTaskRunsStatusDirectly(pr *v1beta1.PipelineRun) error
 		}
 	}
 	return nil
+}
+
+func (c *Reconciler) createRun(ctx context.Context, pr *v1beta1.PipelineRun) (*v1alpha1.Run, error) {
+	r := &v1alpha1.Run{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            rprt.TaskRunName,
+			Namespace:       pr.Namespace,
+			OwnerReferences: []metav1.OwnerReference{pr.GetOwnerReference()},
+			Labels:          getTaskrunLabels(pr, rprt.PipelineTask.Name),
+			Annotations:     getTaskrunAnnotations(pr),
+		},
+		Spec: v1alpha1.RunSpec{
+			Params: rprt.PipelineTask.Params,
+			Ref:    &v1alpha1.TaskRef{
+				// TODO
+			},
+		},
+	}
+	return c.PipelineClientSet.Runs(pr.Namespace).Create(r)
 }
 
 func (c *Reconciler) createTaskRun(ctx context.Context, rprt *resources.ResolvedPipelineRunTask, pr *v1beta1.PipelineRun, storageBasePath string) (*v1beta1.TaskRun, error) {

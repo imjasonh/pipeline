@@ -22,12 +22,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/apis"
-
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	resourcev1alpha1 "github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/contexts"
@@ -35,6 +30,11 @@ import (
 	"github.com/tektoncd/pipeline/pkg/names"
 	"github.com/tektoncd/pipeline/pkg/reconciler/pipeline/dag"
 	"github.com/tektoncd/pipeline/pkg/reconciler/taskrun/resources"
+	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"knative.dev/pkg/apis"
 )
 
 const (
@@ -311,8 +311,11 @@ func isTaskInGraph(pipelineTaskName string, d *dag.Graph) bool {
 	return false
 }
 
-// GetTaskRun is a function that will retrieve the TaskRun name.
+// GetTaskRun is a function that will retrieve a TaskRun by name.
 type GetTaskRun func(name string) (*v1beta1.TaskRun, error)
+
+// GetRun is a function that will retrieve a Run by name.
+type GetRun func(name string) (*v1alpha1.Run, error)
 
 // GetResourcesFromBindings will retrieve all Resources bound in PipelineRun pr and return a map
 // from the declared name of the PipelineResource (which is how the PipelineResource will
@@ -413,6 +416,7 @@ func ResolvePipelineRun(
 	pipelineRun v1beta1.PipelineRun,
 	getTask resources.GetTask,
 	getTaskRun resources.GetTaskRun,
+	getRun GetRun,
 	getClusterTask resources.GetClusterTask,
 	getCondition GetCondition,
 	tasks []v1beta1.PipelineTask,
@@ -430,28 +434,34 @@ func ResolvePipelineRun(
 
 		// Find the Task that this PipelineTask is using
 		var (
-			t        v1beta1.TaskInterface
-			err      error
 			spec     v1beta1.TaskSpec
 			taskName string
 			kind     v1beta1.TaskKind
 		)
 
 		if pt.TaskRef != nil {
-			if pt.TaskRef.Kind == v1beta1.ClusterTaskKind {
-				t, err = getClusterTask(pt.TaskRef.Name)
-			} else {
-				t, err = getTask(pt.TaskRef.Name)
-			}
-			if err != nil {
+			kind = pt.TaskRef.Kind
+
+			switch pt.TaskRef.Kind {
+			case v1beta1.ClusterTaskKind:
+				t, err := getClusterTask(pt.TaskRef.Name)
 				return nil, &TaskNotFoundError{
 					Name: pt.TaskRef.Name,
 					Msg:  err.Error(),
 				}
+				spec = t.TaskSpec()
+				taskName = t.TaskMetadata().Name
+			case v1beta1.NamespacedTaskKind:
+				t, err := getTask(pt.TaskRef.Name)
+				return nil, &TaskNotFoundError{
+					Name: pt.TaskRef.Name,
+					Msg:  err.Error(),
+				}
+				spec = t.TaskSpec()
+				taskName = t.TaskMetadata().Name
+			default:
+				// TODO: handle Custom Task reference
 			}
-			spec = t.TaskSpec()
-			taskName = t.TaskMetadata().Name
-			kind = pt.TaskRef.Kind
 		} else {
 			spec = *pt.TaskSpec
 		}
