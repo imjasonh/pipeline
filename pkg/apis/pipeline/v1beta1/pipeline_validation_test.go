@@ -38,6 +38,13 @@ func TestPipeline_Validate_Success(t *testing.T) {
 			},
 		},
 	}, {
+		name: "pipelinetask custom task taskRef without name",
+		p: &Pipeline{
+			Spec: PipelineSpec{
+				Tasks: []PipelineTask{{Name: "foo", TaskRef: &TaskRef{APIVersion: "example.dev/v0", Kind: "Example", Name: ""}}},
+			},
+		},
+	}, {
 		name: "valid pipeline with params, resources, workspaces, task results, and pipeline results",
 		p: &Pipeline{
 			ObjectMeta: metav1.ObjectMeta{Name: "pipeline"},
@@ -128,6 +135,27 @@ func TestPipeline_Validate_Failure(t *testing.T) {
 		name: "pipeline spec missing",
 		p: &Pipeline{
 			ObjectMeta: metav1.ObjectMeta{Name: "pipeline"},
+		},
+	}, {
+		name: "pipelinetask without name",
+		p: &Pipeline{
+			Spec: PipelineSpec{
+				Tasks: []PipelineTask{{Name: "", TaskRef: &TaskRef{Name: "valid-task"}}},
+			},
+		},
+	}, {
+		name: "pipelinetask taskRef without name",
+		p: &Pipeline{
+			Spec: PipelineSpec{
+				Tasks: []PipelineTask{{Name: "foo", TaskRef: &TaskRef{Name: ""}}},
+			},
+		},
+	}, {
+		name: "pipelinetask custom task taskRef without name",
+		p: &Pipeline{
+			Spec: PipelineSpec{
+				Tasks: []PipelineTask{{Name: "foo", TaskRef: &TaskRef{APIVersion: "example.dev/v0", Kind: "", Name: ""}}},
+			},
 		},
 	}}
 	for _, tt := range tests {

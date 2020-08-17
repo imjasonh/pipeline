@@ -1,0 +1,19 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: custom-task-pipeline
+spec:
+  tasks:
+  - name: custom-task
+    taskRef:
+      apiVersion: example.dev/v0
+      kind: Example
+      name: foo
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: custom-task-pipeline-run
+spec:
+  pipelineRef:
+    name: custom-task-pipeline

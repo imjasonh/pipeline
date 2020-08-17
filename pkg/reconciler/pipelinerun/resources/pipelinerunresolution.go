@@ -66,7 +66,8 @@ func (e *ConditionNotFoundError) Error() string {
 // ResolvedPipelineRunTask contains a Task and its associated TaskRun, if it
 // exists. TaskRun can be nil to represent there being no TaskRun.
 type ResolvedPipelineRunTask struct {
-	TaskRunName           string
+	RunName               string // TaskRun or Run name.
+	Run                   *v1alpha1.Run
 	TaskRun               *v1beta1.TaskRun
 	PipelineTask          *v1beta1.PipelineTask
 	ResolvedTaskResources *resources.ResolvedTaskResources
@@ -429,19 +430,15 @@ func ResolvePipelineRun(
 
 		rprt := ResolvedPipelineRunTask{
 			PipelineTask: &pt,
-			TaskRunName:  GetTaskRunName(pipelineRun.Status.TaskRuns, pt.Name, pipelineRun.Name),
+			RunName:      GetRunName(pipelineRun.Status.TaskRuns, pt.Name, pipelineRun.Name),
 		}
 
 		// Find the Task that this PipelineTask is using
-		var (
-			spec     v1beta1.TaskSpec
-			taskName string
-			kind     v1beta1.TaskKind
-		)
-
+		var spec v1beta1.TaskSpec
+		var taskName string
+		var kind v1beta1.TaskKind
 		if pt.TaskRef != nil {
 			kind = pt.TaskRef.Kind
-
 			switch pt.TaskRef.Kind {
 			case v1beta1.ClusterTaskKind:
 				t, err := getClusterTask(pt.TaskRef.Name)
@@ -459,8 +456,6 @@ func ResolvePipelineRun(
 				}
 				spec = t.TaskSpec()
 				taskName = t.TaskMetadata().Name
-			default:
-				// TODO: handle Custom Task reference
 			}
 		} else {
 			spec = *pt.TaskSpec
@@ -473,10 +468,10 @@ func ResolvePipelineRun(
 
 		rprt.ResolvedTaskResources = rtr
 
-		taskRun, err := getTaskRun(rprt.TaskRunName)
+		taskRun, err := getTaskRun(rprt.RunName)
 		if err != nil {
 			if !errors.IsNotFound(err) {
-				return nil, fmt.Errorf("error retrieving TaskRun %s: %w", rprt.TaskRunName, err)
+				return nil, fmt.Errorf("error retrieving TaskRun %s: %w", rprt.RunName, err)
 			}
 		}
 		if taskRun != nil {
@@ -485,7 +480,7 @@ func ResolvePipelineRun(
 
 		// Get all conditions that this pipelineTask will be using, if any
 		if len(pt.Conditions) > 0 {
-			rcc, err := resolveConditionChecks(&pt, pipelineRun.Status.TaskRuns, rprt.TaskRunName, getTaskRun, getCondition, providedResources)
+			rcc, err := resolveConditionChecks(&pt, pipelineRun.Status.TaskRuns, rprt.RunName, getTaskRun, getCondition, providedResources)
 			if err != nil {
 				return nil, err
 			}
@@ -512,8 +507,9 @@ func getConditionCheckName(taskRunStatus map[string]*v1beta1.PipelineRunTaskRunS
 	return names.SimpleNameGenerator.RestrictLengthWithRandomSuffix(fmt.Sprintf("%s-%s", trName, conditionRegisterName))
 }
 
-// GetTaskRunName should return a unique name for a `TaskRun` if one has not already been defined, and the existing one otherwise.
-func GetTaskRunName(taskRunsStatus map[string]*v1beta1.PipelineRunTaskRunStatus, ptName, prName string) string {
+// GetRunName should return a unique name for a `TaskRun` if one has not
+// already been defined, and the existing one otherwise.
+func GetRunName(taskRunsStatus map[string]*v1beta1.PipelineRunTaskRunStatus, ptName, prName string) string {
 	for k, v := range taskRunsStatus {
 		if v.PipelineTaskName == ptName {
 			return k

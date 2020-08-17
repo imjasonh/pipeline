@@ -28,234 +28,214 @@ func TestTaskParamResolver_ResolveResultRefs(t *testing.T) {
 		args    args
 		want    ResolvedResultRefs
 		wantErr bool
-	}{
-		{
-			name: "successful resolution: param not using result reference",
-			fields: fields{
-				pipelineRunState: PipelineRunState{
-					{
-						TaskRunName: "aTaskRun",
-						TaskRun:     tb.TaskRun("aTaskRun"),
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "aTask",
-							TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-						},
-					},
+	}{{
+		name: "successful resolution: param not using result reference",
+		fields: fields{
+			pipelineRunState: PipelineRunState{{
+				RunName: "aTaskRun",
+				TaskRun: tb.TaskRun("aTaskRun"),
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "aTask",
+					TaskRef: &v1beta1.TaskRef{Name: "aTask"},
 				},
-			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "explicitValueNoResultReference",
-					},
-				},
-			},
-			want:    nil,
-			wantErr: false,
+			}},
 		},
-		{
-			name: "successful resolution: using result reference",
-			fields: fields{
-				pipelineRunState: PipelineRunState{
-					{
-						TaskRunName: "aTaskRun",
-						TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
-							tb.TaskRunResult("aResult", "aResultValue"),
-						)),
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "aTask",
-							TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-						},
-					},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "explicitValueNoResultReference",
 				},
 			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "$(tasks.aTask.results.aResult)",
-					},
-				},
-			},
-			want: ResolvedResultRefs{
-				{
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "aResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "aTask",
-						Result:       "aResult",
-					},
-					FromTaskRun: "aTaskRun",
-				},
-			},
-			wantErr: false,
-		}, {
-			name: "successful resolution: using multiple result reference",
-			fields: fields{
-				pipelineRunState: PipelineRunState{
-					{
-						TaskRunName: "aTaskRun",
-						TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
-							tb.TaskRunResult("aResult", "aResultValue"),
-						)),
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "aTask",
-							TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-						},
-					}, {
-						TaskRunName: "bTaskRun",
-						TaskRun: tb.TaskRun("bTaskRun", tb.TaskRunStatus(
-							tb.TaskRunResult("bResult", "bResultValue"),
-						)),
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "bTask",
-							TaskRef: &v1beta1.TaskRef{Name: "bTask"},
-						},
-					},
-				},
-			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "$(tasks.aTask.results.aResult) $(tasks.bTask.results.bResult)",
-					},
-				},
-			},
-			want: ResolvedResultRefs{
-				{
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "aResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "aTask",
-						Result:       "aResult",
-					},
-					FromTaskRun: "aTaskRun",
-				}, {
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "bResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "bTask",
-						Result:       "bResult",
-					},
-					FromTaskRun: "bTaskRun",
-				},
-			},
-			wantErr: false,
-		}, {
-			name: "successful resolution: duplicate result references",
-			fields: fields{
-				pipelineRunState: PipelineRunState{
-					{
-						TaskRunName: "aTaskRun",
-						TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
-							tb.TaskRunResult("aResult", "aResultValue"),
-						)),
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "aTask",
-							TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-						},
-					},
-				},
-			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "$(tasks.aTask.results.aResult) $(tasks.aTask.results.aResult)",
-					},
-				},
-			},
-			want: ResolvedResultRefs{
-				{
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "aResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "aTask",
-						Result:       "aResult",
-					},
-					FromTaskRun: "aTaskRun",
-				},
-			},
-			wantErr: false,
-		}, {
-			name: "unsuccessful resolution: referenced result doesn't exist in referenced task",
-			fields: fields{
-				pipelineRunState: PipelineRunState{
-					{
-						TaskRunName: "aTaskRun",
-						TaskRun:     tb.TaskRun("aTaskRun"),
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "aTask",
-							TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-						},
-					},
-				},
-			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "$(tasks.aTask.results.aResult)",
-					},
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		}, {
-			name: "unsuccessful resolution: pipeline task missing",
-			fields: fields{
-				pipelineRunState: PipelineRunState{},
-			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "$(tasks.aTask.results.aResult)",
-					},
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		}, {
-			name: "unsuccessful resolution: task run missing",
-			fields: fields{
-				pipelineRunState: PipelineRunState{
-					{
-						PipelineTask: &v1beta1.PipelineTask{
-							Name:    "aTask",
-							TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-						},
-					},
-				},
-			},
-			args: args{
-				param: v1beta1.Param{
-					Name: "targetParam",
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "$(tasks.aTask.results.aResult)",
-					},
-				},
-			},
-			want:    nil,
-			wantErr: true,
 		},
+		want:    nil,
+		wantErr: false,
+	}, {
+		name: "successful resolution: using result reference",
+		fields: fields{
+			pipelineRunState: PipelineRunState{{
+				RunName: "aTaskRun",
+				TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
+					tb.TaskRunResult("aResult", "aResultValue"),
+				)),
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "aTask",
+					TaskRef: &v1beta1.TaskRef{Name: "aTask"},
+				},
+			}},
+		},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult)",
+				},
+			},
+		},
+		want: ResolvedResultRefs{{
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "aResultValue",
+			},
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "aTask",
+				Result:       "aResult",
+			},
+			FromTaskRun: "aTaskRun",
+		}},
+		wantErr: false,
+	}, {
+		name: "successful resolution: using multiple result reference",
+		fields: fields{
+			pipelineRunState: PipelineRunState{{
+				RunName: "aTaskRun",
+				TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
+					tb.TaskRunResult("aResult", "aResultValue"),
+				)),
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "aTask",
+					TaskRef: &v1beta1.TaskRef{Name: "aTask"},
+				},
+			}, {
+				RunName: "bTaskRun",
+				TaskRun: tb.TaskRun("bTaskRun", tb.TaskRunStatus(
+					tb.TaskRunResult("bResult", "bResultValue"),
+				)),
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "bTask",
+					TaskRef: &v1beta1.TaskRef{Name: "bTask"},
+				},
+			}},
+		},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult) $(tasks.bTask.results.bResult)",
+				},
+			},
+		},
+		want: ResolvedResultRefs{{
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "aResultValue",
+			},
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "aTask",
+				Result:       "aResult",
+			},
+			FromTaskRun: "aTaskRun",
+		}, {
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "bResultValue",
+			},
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "bTask",
+				Result:       "bResult",
+			},
+			FromTaskRun: "bTaskRun",
+		}},
+		wantErr: false,
+	}, {
+		name: "successful resolution: duplicate result references",
+		fields: fields{
+			pipelineRunState: PipelineRunState{{
+				RunName: "aTaskRun",
+				TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
+					tb.TaskRunResult("aResult", "aResultValue"),
+				)),
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "aTask",
+					TaskRef: &v1beta1.TaskRef{Name: "aTask"},
+				},
+			}},
+		},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult) $(tasks.aTask.results.aResult)",
+				},
+			},
+		},
+		want: ResolvedResultRefs{{
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "aResultValue",
+			},
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "aTask",
+				Result:       "aResult",
+			},
+			FromTaskRun: "aTaskRun",
+		}},
+		wantErr: false,
+	}, {
+		name: "unsuccessful resolution: referenced result doesn't exist in referenced task",
+		fields: fields{
+			pipelineRunState: PipelineRunState{{
+				RunName: "aTaskRun",
+				TaskRun: tb.TaskRun("aTaskRun"),
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "aTask",
+					TaskRef: &v1beta1.TaskRef{Name: "aTask"},
+				},
+			}},
+		},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult)",
+				},
+			},
+		},
+		want:    nil,
+		wantErr: true,
+	}, {
+		name: "unsuccessful resolution: pipeline task missing",
+		fields: fields{
+			pipelineRunState: PipelineRunState{},
+		},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult)",
+				},
+			},
+		},
+		want:    nil,
+		wantErr: true,
+	}, {
+		name: "unsuccessful resolution: task run missing",
+		fields: fields{
+			pipelineRunState: PipelineRunState{{
+				PipelineTask: &v1beta1.PipelineTask{
+					Name:    "aTask",
+					TaskRef: &v1beta1.TaskRef{Name: "aTask"},
+				},
+			}},
+		},
+		args: args{
+			param: v1beta1.Param{
+				Name: "targetParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult)",
+				},
+			},
+		},
+		want:    nil,
+		wantErr: true,
+	},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -299,74 +279,65 @@ func TestResolveResultRefs(t *testing.T) {
 		pipelineRunState PipelineRunState
 		targets          PipelineRunState
 	}
-	pipelineRunState := PipelineRunState{
-		{
-			TaskRunName: "aTaskRun",
-			TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
-				tb.TaskRunResult("aResult", "aResultValue"),
-			)),
-			PipelineTask: &v1beta1.PipelineTask{
-				Name:    "aTask",
-				TaskRef: &v1beta1.TaskRef{Name: "aTask"},
-			},
-		}, {
-			PipelineTask: &v1beta1.PipelineTask{
-				Name:    "bTask",
-				TaskRef: &v1beta1.TaskRef{Name: "bTask"},
-				Params: []v1beta1.Param{
-					{
-						Name: "bParam",
-						Value: v1beta1.ArrayOrString{
-							Type:      v1beta1.ParamTypeString,
-							StringVal: "$(tasks.aTask.results.aResult)",
-						},
-					},
-				},
-			},
+	pipelineRunState := PipelineRunState{{
+		RunName: "aTaskRun",
+		TaskRun: tb.TaskRun("aTaskRun", tb.TaskRunStatus(
+			tb.TaskRunResult("aResult", "aResultValue"),
+		)),
+		PipelineTask: &v1beta1.PipelineTask{
+			Name:    "aTask",
+			TaskRef: &v1beta1.TaskRef{Name: "aTask"},
 		},
-	}
+	}, {
+		PipelineTask: &v1beta1.PipelineTask{
+			Name:    "bTask",
+			TaskRef: &v1beta1.TaskRef{Name: "bTask"},
+			Params: []v1beta1.Param{{
+				Name: "bParam",
+				Value: v1beta1.ArrayOrString{
+					Type:      v1beta1.ParamTypeString,
+					StringVal: "$(tasks.aTask.results.aResult)",
+				},
+			}},
+		},
+	}}
 
 	tests := []struct {
 		name    string
 		args    args
 		want    ResolvedResultRefs
 		wantErr bool
-	}{
-		{
-			name: "Test successful result references resolution",
-			args: args{
-				pipelineRunState: pipelineRunState,
-				targets: PipelineRunState{
-					pipelineRunState[1],
-				},
+	}{{
+		name: "Test successful result references resolution",
+		args: args{
+			pipelineRunState: pipelineRunState,
+			targets: PipelineRunState{
+				pipelineRunState[1],
 			},
-			want: ResolvedResultRefs{
-				{
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "aResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "aTask",
-						Result:       "aResult",
-					},
-					FromTaskRun: "aTaskRun",
-				},
-			},
-			wantErr: false,
 		},
-		{
-			name: "Test successful result references resolution non result references",
-			args: args{
-				pipelineRunState: pipelineRunState,
-				targets: PipelineRunState{
-					pipelineRunState[0],
-				},
+		want: ResolvedResultRefs{{
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "aResultValue",
 			},
-			want:    nil,
-			wantErr: false,
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "aTask",
+				Result:       "aResult",
+			},
+			FromTaskRun: "aTaskRun",
+		}},
+		wantErr: false,
+	}, {
+		name: "Test successful result references resolution non result references",
+		args: args{
+			pipelineRunState: pipelineRunState,
+			targets: PipelineRunState{
+				pipelineRunState[0],
+			},
 		},
-	}
+		want:    nil,
+		wantErr: false,
+	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ResolveResultRefs(tt.args.pipelineRunState, tt.args.targets)
@@ -400,12 +371,10 @@ func TestResolvePipelineResultRefs(t *testing.T) {
 				}},
 			},
 			TaskRunStatusFields: v1beta1.TaskRunStatusFields{
-				TaskRunResults: []v1beta1.TaskRunResult{
-					{
-						Name:  "aResult",
-						Value: "aResultValue",
-					},
-				},
+				TaskRunResults: []v1beta1.TaskRunResult{{
+					Name:  "aResult",
+					Value: "aResultValue",
+				}},
 			},
 		},
 	}
@@ -441,70 +410,57 @@ func TestResolvePipelineResultRefs(t *testing.T) {
 		name string
 		args args
 		want ResolvedResultRefs
-	}{
-		{
-			name: "Test pipeline result from a successful task",
-			args: args{
-				status: status,
-				pipelineResults: []v1beta1.PipelineResult{
-					{
-						Name:        "from-a",
-						Value:       "$(tasks.aTask.results.aResult)",
-						Description: "a result from a",
-					},
-				},
+	}{{
+		name: "Test pipeline result from a successful task",
+		args: args{
+			status: status,
+			pipelineResults: []v1beta1.PipelineResult{{
+				Name:        "from-a",
+				Value:       "$(tasks.aTask.results.aResult)",
+				Description: "a result from a",
 			},
-			want: ResolvedResultRefs{
-				{
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "aResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "aTask",
-						Result:       "aResult",
-					},
-					FromTaskRun: "aTaskRun",
-				},
+			}},
+		want: ResolvedResultRefs{{
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "aResultValue",
 			},
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "aTask",
+				Result:       "aResult",
+			},
+			FromTaskRun: "aTaskRun",
+		}},
+	}, {
+		name: "Test results from a task that did not run and one and failed",
+		args: args{
+			status: status,
+			pipelineResults: []v1beta1.PipelineResult{{
+				Name:        "from-a",
+				Value:       "$(tasks.aTask.results.aResult)",
+				Description: "a result from a",
+			}, {
+				Name:        "from-b",
+				Value:       "$(tasks.bTask.results.bResult)",
+				Description: "a result from b",
+			}, {
+				Name:        "from-c",
+				Value:       "$(tasks.cTask.results.cResult)",
+				Description: "a result from c",
+			}},
 		},
-		{
-			name: "Test results from a task that did not run and one and failed",
-			args: args{
-				status: status,
-				pipelineResults: []v1beta1.PipelineResult{
-					{
-						Name:        "from-a",
-						Value:       "$(tasks.aTask.results.aResult)",
-						Description: "a result from a",
-					},
-					{
-						Name:        "from-b",
-						Value:       "$(tasks.bTask.results.bResult)",
-						Description: "a result from b",
-					},
-					{
-						Name:        "from-c",
-						Value:       "$(tasks.cTask.results.cResult)",
-						Description: "a result from c",
-					},
-				},
+		want: ResolvedResultRefs{{
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: "aResultValue",
 			},
-			want: ResolvedResultRefs{
-				{
-					Value: v1beta1.ArrayOrString{
-						Type:      v1beta1.ParamTypeString,
-						StringVal: "aResultValue",
-					},
-					ResultReference: v1beta1.ResultRef{
-						PipelineTask: "aTask",
-						Result:       "aResult",
-					},
-					FromTaskRun: "aTaskRun",
-				},
+			ResultReference: v1beta1.ResultRef{
+				PipelineTask: "aTask",
+				Result:       "aResult",
 			},
-		},
-	}
+			FromTaskRun: "aTaskRun",
+		}},
+	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ResolvePipelineResultRefs(tt.args.status, tt.args.pipelineResults)

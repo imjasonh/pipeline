@@ -220,21 +220,24 @@ func (ps *PipelineSpec) Validate(ctx context.Context) *apis.FieldError {
 func validatePipelineTasks(ctx context.Context, tasks []PipelineTask, finalTasks []PipelineTask) *apis.FieldError {
 	// Names cannot be duplicated
 	taskNames := sets.NewString()
-	var err *apis.FieldError
 	for i, t := range tasks {
-		if err = validatePipelineTaskName(ctx, "spec.tasks", i, t, taskNames); err != nil {
+		if err := validatePipelineTask(ctx, "spec.tasks", i, t, taskNames); err != nil {
 			return err
 		}
 	}
 	for i, t := range finalTasks {
-		if err = validatePipelineTaskName(ctx, "spec.finally", i, t, taskNames); err != nil {
+		if err := validatePipelineTask(ctx, "spec.finally", i, t, taskNames); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validatePipelineTaskName(ctx context.Context, prefix string, i int, t PipelineTask, taskNames sets.String) *apis.FieldError {
+func validatePipelineTask(ctx context.Context, prefix string, i int, t PipelineTask, taskNames sets.String) *apis.FieldError {
+	hasTaskRef := t.TaskRef != nil
+	hasTaskSpec := t.TaskSpec != nil
+	isCustomTask := hasTaskRef && t.TaskRef.APIVersion != ""
+
 	if errs := validation.IsDNS1123Label(t.Name); len(errs) > 0 {
 		return &apis.FieldError{
 			Message: fmt.Sprintf("invalid value %q", t.Name),
@@ -244,20 +247,22 @@ func validatePipelineTaskName(ctx context.Context, prefix string, i int, t Pipel
 		}
 	}
 	// can't have both taskRef and taskSpec at the same time
-	if (t.TaskRef != nil && t.TaskRef.Name != "") && t.TaskSpec != nil {
+	if hasTaskRef && hasTaskSpec {
 		return apis.ErrMultipleOneOf(fmt.Sprintf(prefix+"[%d].taskRef", i), fmt.Sprintf(prefix+"[%d].taskSpec", i))
 	}
 	// Check that one of TaskRef and TaskSpec is present
-	if (t.TaskRef == nil || (t.TaskRef != nil && t.TaskRef.Name == "")) && t.TaskSpec == nil {
+	if !hasTaskRef && !hasTaskSpec {
 		return apis.ErrMissingOneOf(fmt.Sprintf(prefix+"[%d].taskRef", i), fmt.Sprintf(prefix+"[%d].taskSpec", i))
 	}
 	// Validate TaskSpec if it's present
-	if t.TaskSpec != nil {
+	if hasTaskSpec {
 		if err := t.TaskSpec.Validate(ctx); err != nil {
 			return err
 		}
 	}
-	if t.TaskRef != nil && t.TaskRef.Name != "" {
+
+	// Custom Task refs are allowed to have no name.
+	if hasTaskRef && t.TaskRef.Name != "" {
 		// Task names are appended to the container name, which must exist and
 		// must be a valid k8s name
 		if errSlice := validation.IsQualifiedName(t.Name); len(errSlice) != 0 {
@@ -271,6 +276,13 @@ func validatePipelineTaskName(ctx context.Context, prefix string, i int, t Pipel
 			return apis.ErrMultipleOneOf(fmt.Sprintf(prefix+"[%d].name", i))
 		}
 		taskNames[t.Name] = struct{}{}
+	}
+
+	if hasTaskRef && !isCustomTask && t.TaskRef.Name == "" {
+		return apis.ErrInvalidValue(t.TaskRef, "taskRef must specify name")
+	}
+	if isCustomTask && t.TaskRef.Kind == "" {
+		return apis.ErrInvalidValue(t.TaskRef, "custom task ref must specify apiVersion and kind")
 	}
 	return nil
 }
