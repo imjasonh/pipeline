@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: test
+spec:
+  results:
+  - name: digest
+
+  steps:
+  - name: ignore-failure
+    image: gcr.io/go-containerregistry/crane
+    script: |
+      #! /tekton/tools/sh
+      set -ex
+      /ko-app/crane digest does-not-exist || true
+
+  - name: redirect-output
+    image: gcr.io/go-containerregistry/crane
+    script: |
+      #! /tekton/tools/sh
+      set -ex
+      /ko-app/crane digest ubuntu > /tekton/results/digest

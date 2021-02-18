@@ -150,6 +150,14 @@ func (b *Builder) Build(ctx context.Context, taskRun *v1beta1.TaskRun, taskSpec 
 	initContainers = append(initContainers, entrypointInit)
 	volumes = append(volumes, toolsVolume, downwardVolume)
 
+	initContainers = append(initContainers, corev1.Container{
+		Name:  "place-shell",
+		Image: "busybox",
+		// Invoke the busybox image to copy itself to the correct location for later steps.
+		Command:      []string{"/bin/busybox", "cp", "/bin/busybox", mountPoint + "/sh"},
+		VolumeMounts: []corev1.VolumeMount{toolsMount},
+	})
+
 	limitRangeMin, err := getLimitRangeMinimum(ctx, taskRun.Namespace, b.KubeClient)
 	if err != nil {
 		return nil, err
