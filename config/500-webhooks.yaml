@@ -43,6 +43,12 @@ webhooks:
   failurePolicy: Fail
   sideEffects: None
   name: validation.webhook.pipeline.tekton.dev
+  rules:
+  - apiGroups: ['tekton.dev']
+    apiVersions: ['*']
+    operations: ['*']
+    scope: "*"
+    resources: ['*']
 
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -63,6 +69,12 @@ webhooks:
   failurePolicy: Fail
   sideEffects: None
   name: webhook.pipeline.tekton.dev
+  rules:
+  - apiGroups: ['tekton.dev']
+    apiVersions: ['*']
+    operations: ['*']
+    scope: "*"
+    resources: ['*']
 
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -83,6 +95,12 @@ webhooks:
   failurePolicy: Fail
   sideEffects: None
   name: config.webhook.pipeline.tekton.dev
+  rules:
+  - apiGroups: ['']
+    apiVersions: ['v1']
+    operations: ['*']
+    scope: "*"
+    resources: ['configmaps']
   objectSelector:
     matchLabels:
       app.kubernetes.io/part-of: tekton-pipelines
