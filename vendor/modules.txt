@@ -121,7 +121,7 @@ github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 # github.com/cespare/xxhash/v2 v2.1.2
 github.com/cespare/xxhash/v2
-# github.com/chrismellard/docker-credential-acr-env v0.0.0-20210203204924-09e2b5a8ac86
+# github.com/chrismellard/docker-credential-acr-env v0.0.0-20210203204924-09e2b5a8ac86 => github.com/imjasonh/docker-credential-acr-env v0.0.0-20220118143555-ae1381a0efb2
 github.com/chrismellard/docker-credential-acr-env/pkg/credhelper
 github.com/chrismellard/docker-credential-acr-env/pkg/registry
 github.com/chrismellard/docker-credential-acr-env/pkg/token
