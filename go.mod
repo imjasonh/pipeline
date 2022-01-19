@@ -2,7 +2,7 @@ module github.com/tektoncd/pipeline
 
 go 1.13
 
-replace github.com/chrismellard/docker-credential-acr-env => github.com/imjasonh/docker-credential-acr-env v0.0.0-20220118143555-ae1381a0efb2
+replace github.com/google/go-containerregistry/pkg/authn/k8schain => github.com/imjasonh/go-containerregistry/pkg/authn/k8schain v0.0.0-20220119194151-b5af5f560612
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.5.0
@@ -39,8 +39,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.13.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.14.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.11.0 // indirect
-	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20211215200129-69c85dc22db6
-	github.com/chrismellard/docker-credential-acr-env v0.0.0-20210203204924-09e2b5a8ac86 // indirect
+	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20211215200129-69c85dc22db6 // indirect
 	github.com/emicklei/go-restful v2.15.0+incompatible // indirect
 	github.com/go-logr/logr v1.2.2 // indirect
 	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-20220114205711-890d5b362eb8 // indirect

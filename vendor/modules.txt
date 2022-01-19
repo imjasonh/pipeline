@@ -121,7 +121,7 @@ github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 # github.com/cespare/xxhash/v2 v2.1.2
 github.com/cespare/xxhash/v2
-# github.com/chrismellard/docker-credential-acr-env v0.0.0-20210203204924-09e2b5a8ac86 => github.com/imjasonh/docker-credential-acr-env v0.0.0-20220118143555-ae1381a0efb2
+# github.com/chrismellard/docker-credential-acr-env v0.0.0-20220119192733-fe33c00cee21
 github.com/chrismellard/docker-credential-acr-env/pkg/credhelper
 github.com/chrismellard/docker-credential-acr-env/pkg/registry
 github.com/chrismellard/docker-credential-acr-env/pkg/token
@@ -237,7 +237,7 @@ github.com/google/go-containerregistry/pkg/v1/remote/transport
 github.com/google/go-containerregistry/pkg/v1/stream
 github.com/google/go-containerregistry/pkg/v1/tarball
 github.com/google/go-containerregistry/pkg/v1/types
-# github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220114205711-890d5b362eb8
+# github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220114205711-890d5b362eb8 => github.com/imjasonh/go-containerregistry/pkg/authn/k8schain v0.0.0-20220119194151-b5af5f560612
 github.com/google/go-containerregistry/pkg/authn/k8schain
 # github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-20220114205711-890d5b362eb8
 github.com/google/go-containerregistry/pkg/authn/kubernetes
