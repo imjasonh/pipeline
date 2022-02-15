@@ -23,11 +23,14 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/containerd/containerd/platforms"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/imjasonh/osversion"
 	"github.com/tektoncd/pipeline/cmd/entrypoint/subcommands"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline"
 	"github.com/tektoncd/pipeline/pkg/credentials"
@@ -110,11 +113,12 @@ func main() {
 		if err := json.Unmarshal([]byte(env), &cmds); err != nil {
 			log.Fatal(err)
 		}
-		// NB: This value contains OS/architecture and maybe variant.
-		// It doesn't include osversion, which is necessary to
-		// disambiguate two images both for e.g., Windows, that only
-		// differ by osversion.
-		plat := platforms.DefaultString()
+		plat := v1.Platform{
+			OS:           runtime.GOOS,
+			Architecture: runtime.GOARCH,
+			Variant:      platforms.DefaultSpec().Variant,
+			OSVersion:    osversion.Get(),
+		}
 		var err error
 		cmd, err = selectCommandForPlatform(cmds, plat)
 		if err != nil {
@@ -178,8 +182,10 @@ func main() {
 	}
 }
 
-func selectCommandForPlatform(cmds map[string][]string, plat string) ([]string, error) {
-	cmd, found := cmds[plat]
+func selectCommandForPlatform(cmds map[string][]string, plat v1.Platform) ([]string, error) {
+	platstr := plat.String()
+
+	cmd, found := cmds[platstr]
 	if found {
 		return cmd, nil
 	}
@@ -187,10 +193,37 @@ func selectCommandForPlatform(cmds map[string][]string, plat string) ([]string, 
 	// If the command wasn't found, check if there's a
 	// command defined for the same platform without a CPU
 	// variant specified.
-	platWithoutVariant := plat[:strings.LastIndex(plat, "/")]
-	cmd, found = cmds[platWithoutVariant]
+	plat.Variant = ""
+	platstr = plat.String()
+	cmd, found = cmds[platstr]
 	if found {
 		return cmd, nil
 	}
+
+	// If the command still wasn't found, check if the current platform has
+	// an osversion component (for Windows).
+	//
+	// This will be a string like X.Y.Z.A, where the image's platform
+	// osversion might be X.Y.Z.B, so ignore any mismatched final
+	// component.  This should be matched with the command map ignoring
+	if plat.OSVersion != "" {
+		if strings.Count(plat.OSVersion, ".") == 3 {
+			plat.OSVersion = plat.OSVersion[:strings.LastIndex(plat.OSVersion, ".")]
+		}
+		platstr = plat.String()
+		for k, v := range cmds {
+			target, err := v1.ParsePlatform(k)
+			if err != nil {
+				return nil, fmt.Errorf("parsing platform %q: %w", k, err)
+			}
+			if target.OSVersion != "" && strings.Count(target.OSVersion, ".") == 3 {
+				target.OSVersion = target.OSVersion[:strings.LastIndex(target.OSVersion, ".")]
+			}
+			if target.String() == platstr {
+				return v, nil
+			}
+		}
+	}
+
 	return nil, fmt.Errorf("could not find command for platform %q", plat)
 }

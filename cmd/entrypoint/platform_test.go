@@ -20,13 +20,14 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 func TestSelectCommandForPlatform(t *testing.T) {
 	for _, c := range []struct {
 		desc    string
 		m       map[string][]string
-		plat    string
+		plat    v1.Platform
 		want    []string
 		wantErr bool
 	}{{
@@ -35,7 +36,7 @@ func TestSelectCommandForPlatform(t *testing.T) {
 			"linux/amd64": {"my", "command"},
 			"linux/s390x": {"other", "one"},
 		},
-		plat: "linux/amd64",
+		plat: v1.Platform{OS: "linux", Architecture: "amd64"},
 		want: []string{"my", "command"},
 	}, {
 		desc: "platform not found",
@@ -43,15 +44,15 @@ func TestSelectCommandForPlatform(t *testing.T) {
 			"linux/amd64": {"my", "command"},
 			"linux/s390x": {"other", "one"},
 		},
-		plat:    "linux/ppc64le",
+		plat:    v1.Platform{OS: "linux", Architecture: "ppc64le"},
 		wantErr: true,
 	}, {
-		desc: "platform fallback",
+		desc: "platform fallback, ignore variant",
 		m: map[string][]string{
 			"linux/amd64": {"my", "command"},
 			"linux/s390x": {"other", "one"},
 		},
-		plat: "linux/amd64/v8",
+		plat: v1.Platform{OS: "linux", Architecture: "amd64", Variant: "v8"},
 		want: []string{"my", "command"},
 	}, {
 		desc: "platform fallback not needed",
@@ -59,7 +60,23 @@ func TestSelectCommandForPlatform(t *testing.T) {
 			"linux/amd64":    {"other", "one"},
 			"linux/amd64/v8": {"my", "command"},
 		},
-		plat: "linux/amd64/v8",
+		plat: v1.Platform{OS: "linux", Architecture: "amd64", Variant: "v8"},
+		want: []string{"my", "command"},
+	}, {
+		desc: "platform fallback, osversion",
+		m: map[string][]string{
+			"windows/amd64:1.2.3.9": {"my", "command"},
+			"windows/amd64:2.3.4.5": {"other", "one"},
+		},
+		plat: v1.Platform{OS: "windows", Architecture: "amd64", OSVersion: "1.2.3.4"},
+		want: []string{"my", "command"},
+	}, {
+		desc: "platform fallback, osversion and variant", // variant is ignored as before.
+		m: map[string][]string{
+			"windows/amd64:1.2.3.9": {"my", "command"},
+			"windows/amd64:2.3.4.5": {"other", "one"},
+		},
+		plat: v1.Platform{OS: "windows", Architecture: "amd64", Variant: "v8", OSVersion: "1.2.3.4"},
 		want: []string{"my", "command"},
 	}} {
 		t.Run(c.desc, func(t *testing.T) {
