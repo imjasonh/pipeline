@@ -109,7 +109,7 @@ func TestValidateVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := substitution.ValidateVariable("somefield", tc.args.input, tc.args.prefix, tc.args.locationName, tc.args.path, tc.args.vars)
 
-			if d := cmp.Diff(got, tc.expectedError, cmp.AllowUnexported(apis.FieldError{})); d != "" {
+			if d := cmp.Diff(tc.expectedError, got, cmp.AllowUnexported(apis.FieldError{})); d != "" {
 				t.Errorf("ValidateVariable() error did not match expected error %s", diff.PrintWantGot(d))
 			}
 		})
@@ -143,11 +143,27 @@ func TestValidateVariablePs(t *testing.T) {
 		},
 		expectedError: nil,
 	}, {
-		name: "valid variable with single quotebracket",
+		name: "valid variable with single quote bracket",
 		args: args{
 			input:  "--flag=$(inputs.params['baz'])",
 			prefix: "inputs.params",
 			vars:   sets.NewString("baz"),
+		},
+		expectedError: nil,
+	}, {
+		name: "valid variable with double quote bracket and dots",
+		args: args{
+			input:  "--flag=$(inputs.params[\"foo.bar.baz\"])",
+			prefix: "inputs.params",
+			vars:   sets.NewString("foo.bar.baz"),
+		},
+		expectedError: nil,
+	}, {
+		name: "valid variable with single quote bracket and dots",
+		args: args{
+			input:  "--flag=$(inputs.params['foo.bar.baz'])",
+			prefix: "inputs.params",
+			vars:   sets.NewString("foo.bar.baz"),
 		},
 		expectedError: nil,
 	}, {
@@ -197,7 +213,7 @@ func TestValidateVariablePs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := substitution.ValidateVariableP(tc.args.input, tc.args.prefix, tc.args.vars)
 
-			if d := cmp.Diff(got, tc.expectedError, cmp.AllowUnexported(apis.FieldError{})); d != "" {
+			if d := cmp.Diff(tc.expectedError, got, cmp.AllowUnexported(apis.FieldError{})); d != "" {
 				t.Errorf("ValidateVariableP() error did not match expected error %s", diff.PrintWantGot(d))
 			}
 		})
@@ -257,7 +273,7 @@ func TestApplyReplacements(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualOutput := substitution.ApplyReplacements(tt.args.input, tt.args.replacements)
-			if d := cmp.Diff(actualOutput, tt.expectedOutput); d != "" {
+			if d := cmp.Diff(tt.expectedOutput, actualOutput); d != "" {
 				t.Errorf("ApplyReplacements() output did not match expected value %s", diff.PrintWantGot(d))
 			}
 		})
@@ -335,7 +351,7 @@ func TestApplyArrayReplacements(t *testing.T) {
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := substitution.ApplyArrayReplacements(tc.args.input, tc.args.stringReplacements, tc.args.arrayReplacements)
-			if d := cmp.Diff(actualOutput, tc.expectedOutput); d != "" {
+			if d := cmp.Diff(tc.expectedOutput, actualOutput); d != "" {
 				t.Errorf("ApplyArrayReplacements() output did not match expected value %s", diff.PrintWantGot(d))
 			}
 		})
